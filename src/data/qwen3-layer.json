@@ -1,0 +1,641 @@
+{
+  "schemaVersion": 1,
+  "name": "Qwen3-235B-A22B · 单层理论草图",
+  "baseline": {
+    "megatronCommit": "64d156734918e73238de5cad6d97dcfaa6ec1005",
+    "modelRevision": "8efa61729e24bd65b1d152b5ab5409052aa80e65",
+    "model": "Qwen/Qwen3-235B-A22B",
+    "batch": 1,
+    "sequence": 2048,
+    "tp": 1,
+    "cp": 1,
+    "ep": 1,
+    "note": "不完整理论草图，非 Megatron trace。仅示意 Linear/SwiGLU 保存关系；Norm、Attention、Router 的 saved tensors、路由概率/索引、workspace、融合和生命周期尚未建模。BF16 是演示假设。"
+  },
+  "operators": [
+    {
+      "id": "norm1",
+      "name": "Input RMSNorm",
+      "module": "Attention",
+      "phase": "forward",
+      "position": {
+        "x": 0,
+        "y": 80
+      }
+    },
+    {
+      "id": "qkv",
+      "name": "QKV Linear",
+      "module": "Attention",
+      "phase": "forward",
+      "position": {
+        "x": 340,
+        "y": 80
+      }
+    },
+    {
+      "id": "qk",
+      "name": "Q/K Norm + RoPE",
+      "module": "Attention",
+      "phase": "forward",
+      "position": {
+        "x": 680,
+        "y": 80
+      }
+    },
+    {
+      "id": "attn",
+      "name": "Core Attention",
+      "module": "Attention",
+      "phase": "forward",
+      "position": {
+        "x": 1020,
+        "y": 80
+      }
+    },
+    {
+      "id": "proj",
+      "name": "Output Projection",
+      "module": "Attention",
+      "phase": "forward",
+      "position": {
+        "x": 1360,
+        "y": 80
+      }
+    },
+    {
+      "id": "res1",
+      "name": "Residual Add",
+      "module": "Attention",
+      "phase": "forward",
+      "position": {
+        "x": 1700,
+        "y": 80
+      }
+    },
+    {
+      "id": "norm2",
+      "name": "Pre-MoE RMSNorm",
+      "module": "MoE",
+      "phase": "forward",
+      "position": {
+        "x": 2040,
+        "y": 80
+      }
+    },
+    {
+      "id": "route",
+      "name": "Router + Top-8 + Dispatch",
+      "module": "MoE",
+      "phase": "forward",
+      "position": {
+        "x": 2380,
+        "y": 80
+      }
+    },
+    {
+      "id": "fc1",
+      "name": "Grouped Expert FC1",
+      "module": "MoE",
+      "phase": "forward",
+      "position": {
+        "x": 2720,
+        "y": 80
+      }
+    },
+    {
+      "id": "act",
+      "name": "SwiGLU",
+      "module": "MoE",
+      "phase": "forward",
+      "position": {
+        "x": 3060,
+        "y": 80
+      }
+    },
+    {
+      "id": "fc2",
+      "name": "Grouped Expert FC2",
+      "module": "MoE",
+      "phase": "forward",
+      "position": {
+        "x": 3400,
+        "y": 80
+      }
+    },
+    {
+      "id": "combine",
+      "name": "Weighted Combine",
+      "module": "MoE",
+      "phase": "forward",
+      "position": {
+        "x": 3740,
+        "y": 80
+      }
+    },
+    {
+      "id": "res2",
+      "name": "Residual Add",
+      "module": "MoE",
+      "phase": "forward",
+      "position": {
+        "x": 4080,
+        "y": 80
+      }
+    },
+    {
+      "id": "qkv_bwd",
+      "name": "QKV backward",
+      "module": "Attention",
+      "phase": "backward",
+      "position": {
+        "x": 340,
+        "y": 540
+      }
+    },
+    {
+      "id": "proj_bwd",
+      "name": "Projection backward",
+      "module": "Attention",
+      "phase": "backward",
+      "position": {
+        "x": 1360,
+        "y": 540
+      }
+    },
+    {
+      "id": "fc1_bwd",
+      "name": "FC1 backward",
+      "module": "MoE",
+      "phase": "backward",
+      "position": {
+        "x": 2720,
+        "y": 540
+      }
+    },
+    {
+      "id": "act_bwd",
+      "name": "SwiGLU backward",
+      "module": "MoE",
+      "phase": "backward",
+      "position": {
+        "x": 3060,
+        "y": 540
+      }
+    },
+    {
+      "id": "fc2_bwd",
+      "name": "FC2 backward",
+      "module": "MoE",
+      "phase": "backward",
+      "position": {
+        "x": 3400,
+        "y": 540
+      }
+    }
+  ],
+  "tensors": [
+    {
+      "id": "input",
+      "name": "Layer input",
+      "module": "Attention",
+      "shape": [
+        2048,
+        4096
+      ],
+      "dtype": "bf16",
+      "storageId": "s_input",
+      "producer": null,
+      "consumers": [
+        "norm1",
+        "res1"
+      ],
+      "savedBy": [],
+      "evidence": "hypothesis",
+      "note": "理论 shape；分配和保存关系待源码/运行验证。",
+      "position": {
+        "x": -200,
+        "y": 260
+      }
+    },
+    {
+      "id": "normed",
+      "name": "Normalized input",
+      "module": "Attention",
+      "shape": [
+        2048,
+        4096
+      ],
+      "dtype": "bf16",
+      "storageId": "s_normed",
+      "producer": "norm1",
+      "consumers": [
+        "qkv"
+      ],
+      "savedBy": [
+        "qkv_bwd"
+      ],
+      "evidence": "hypothesis",
+      "note": "理论 shape；分配和保存关系待源码/运行验证。",
+      "position": {
+        "x": 140,
+        "y": 260
+      }
+    },
+    {
+      "id": "qkv_out",
+      "name": "Packed QKV",
+      "module": "Attention",
+      "shape": [
+        2048,
+        9216
+      ],
+      "dtype": "bf16",
+      "storageId": "s_qkv_out",
+      "producer": "qkv",
+      "consumers": [
+        "qk"
+      ],
+      "savedBy": [],
+      "evidence": "hypothesis",
+      "note": "理论 shape；分配和保存关系待源码/运行验证。",
+      "position": {
+        "x": 480,
+        "y": 260
+      }
+    },
+    {
+      "id": "q",
+      "name": "Q after Norm / RoPE",
+      "module": "Attention",
+      "shape": [
+        2048,
+        64,
+        128
+      ],
+      "dtype": "bf16",
+      "storageId": "s_q",
+      "producer": "qk",
+      "consumers": [
+        "attn"
+      ],
+      "savedBy": [],
+      "evidence": "hypothesis",
+      "note": "理论 shape；分配和保存关系待源码/运行验证。",
+      "position": {
+        "x": 820,
+        "y": 210
+      }
+    },
+    {
+      "id": "k",
+      "name": "K after Norm / RoPE",
+      "module": "Attention",
+      "shape": [
+        2048,
+        4,
+        128
+      ],
+      "dtype": "bf16",
+      "storageId": "s_k",
+      "producer": "qk",
+      "consumers": [
+        "attn"
+      ],
+      "savedBy": [],
+      "evidence": "hypothesis",
+      "note": "理论 shape；分配和保存关系待源码/运行验证。",
+      "position": {
+        "x": 820,
+        "y": 340
+      }
+    },
+    {
+      "id": "v",
+      "name": "V view of packed QKV",
+      "module": "Attention",
+      "shape": [
+        2048,
+        4,
+        128
+      ],
+      "dtype": "bf16",
+      "storageId": "s_qkv_out",
+      "producer": "qkv",
+      "consumers": [
+        "attn"
+      ],
+      "savedBy": [],
+      "evidence": "hypothesis",
+      "note": "假设 V 与 packed QKV 共享 storage；真实布局、拷贝需核对。",
+      "position": {
+        "x": 480,
+        "y": 400
+      }
+    },
+    {
+      "id": "context",
+      "name": "Attention output",
+      "module": "Attention",
+      "shape": [
+        2048,
+        8192
+      ],
+      "dtype": "bf16",
+      "storageId": "s_context",
+      "producer": "attn",
+      "consumers": [
+        "proj"
+      ],
+      "savedBy": [
+        "proj_bwd"
+      ],
+      "evidence": "hypothesis",
+      "note": "理论 shape；分配和保存关系待源码/运行验证。",
+      "position": {
+        "x": 1160,
+        "y": 260
+      }
+    },
+    {
+      "id": "projected",
+      "name": "Projected output",
+      "module": "Attention",
+      "shape": [
+        2048,
+        4096
+      ],
+      "dtype": "bf16",
+      "storageId": "s_projected",
+      "producer": "proj",
+      "consumers": [
+        "res1"
+      ],
+      "savedBy": [],
+      "evidence": "hypothesis",
+      "note": "理论 shape；分配和保存关系待源码/运行验证。",
+      "position": {
+        "x": 1500,
+        "y": 260
+      }
+    },
+    {
+      "id": "residual",
+      "name": "Attention residual",
+      "module": "MoE",
+      "shape": [
+        2048,
+        4096
+      ],
+      "dtype": "bf16",
+      "storageId": "s_residual",
+      "producer": "res1",
+      "consumers": [
+        "norm2",
+        "res2"
+      ],
+      "savedBy": [],
+      "evidence": "hypothesis",
+      "note": "理论 shape；分配和保存关系待源码/运行验证。",
+      "position": {
+        "x": 1840,
+        "y": 260
+      }
+    },
+    {
+      "id": "moe_in",
+      "name": "MoE normalized input",
+      "module": "MoE",
+      "shape": [
+        2048,
+        4096
+      ],
+      "dtype": "bf16",
+      "storageId": "s_moe_in",
+      "producer": "norm2",
+      "consumers": [
+        "route"
+      ],
+      "savedBy": [],
+      "evidence": "hypothesis",
+      "note": "理论 shape；分配和保存关系待源码/运行验证。",
+      "position": {
+        "x": 2180,
+        "y": 260
+      }
+    },
+    {
+      "id": "dispatched",
+      "name": "Routed token copies",
+      "module": "MoE",
+      "shape": [
+        16384,
+        4096
+      ],
+      "dtype": "bf16",
+      "storageId": "s_dispatched",
+      "producer": "route",
+      "consumers": [
+        "fc1"
+      ],
+      "savedBy": [
+        "fc1_bwd"
+      ],
+      "evidence": "hypothesis",
+      "note": "Top-8 总路由条目，假设不丢 token、不 padding；不是每个 expert 的负载。",
+      "position": {
+        "x": 2520,
+        "y": 260
+      }
+    },
+    {
+      "id": "fc1_out",
+      "name": "Gate + up projection",
+      "module": "MoE",
+      "shape": [
+        16384,
+        3072
+      ],
+      "dtype": "bf16",
+      "storageId": "s_fc1_out",
+      "producer": "fc1",
+      "consumers": [
+        "act"
+      ],
+      "savedBy": [
+        "act_bwd"
+      ],
+      "evidence": "hypothesis",
+      "note": "理论 shape；分配和保存关系待源码/运行验证。",
+      "position": {
+        "x": 2860,
+        "y": 260
+      }
+    },
+    {
+      "id": "activated",
+      "name": "SwiGLU output",
+      "module": "MoE",
+      "shape": [
+        16384,
+        1536
+      ],
+      "dtype": "bf16",
+      "storageId": "s_activated",
+      "producer": "act",
+      "consumers": [
+        "fc2"
+      ],
+      "savedBy": [
+        "fc2_bwd"
+      ],
+      "evidence": "hypothesis",
+      "note": "理论 shape；分配和保存关系待源码/运行验证。",
+      "position": {
+        "x": 3200,
+        "y": 260
+      }
+    },
+    {
+      "id": "fc2_out",
+      "name": "Expert output",
+      "module": "MoE",
+      "shape": [
+        16384,
+        4096
+      ],
+      "dtype": "bf16",
+      "storageId": "s_fc2_out",
+      "producer": "fc2",
+      "consumers": [
+        "combine"
+      ],
+      "savedBy": [],
+      "evidence": "hypothesis",
+      "note": "理论 shape；分配和保存关系待源码/运行验证。",
+      "position": {
+        "x": 3540,
+        "y": 260
+      }
+    },
+    {
+      "id": "combined",
+      "name": "Combined output",
+      "module": "MoE",
+      "shape": [
+        2048,
+        4096
+      ],
+      "dtype": "bf16",
+      "storageId": "s_combined",
+      "producer": "combine",
+      "consumers": [
+        "res2"
+      ],
+      "savedBy": [],
+      "evidence": "hypothesis",
+      "note": "理论 shape；分配和保存关系待源码/运行验证。",
+      "position": {
+        "x": 3880,
+        "y": 260
+      }
+    },
+    {
+      "id": "output",
+      "name": "Layer output",
+      "module": "MoE",
+      "shape": [
+        2048,
+        4096
+      ],
+      "dtype": "bf16",
+      "storageId": "s_output",
+      "producer": "res2",
+      "consumers": [],
+      "savedBy": [],
+      "evidence": "hypothesis",
+      "note": "理论 shape；分配和保存关系待源码/运行验证。",
+      "position": {
+        "x": 4220,
+        "y": 260
+      }
+    }
+  ],
+  "storages": [
+    {
+      "id": "s_input",
+      "bytes": 16777216,
+      "evidence": "hypothesis"
+    },
+    {
+      "id": "s_normed",
+      "bytes": 16777216,
+      "evidence": "hypothesis"
+    },
+    {
+      "id": "s_qkv_out",
+      "bytes": 37748736,
+      "evidence": "hypothesis"
+    },
+    {
+      "id": "s_q",
+      "bytes": 33554432,
+      "evidence": "hypothesis"
+    },
+    {
+      "id": "s_k",
+      "bytes": 2097152,
+      "evidence": "hypothesis"
+    },
+    {
+      "id": "s_context",
+      "bytes": 33554432,
+      "evidence": "hypothesis"
+    },
+    {
+      "id": "s_projected",
+      "bytes": 16777216,
+      "evidence": "hypothesis"
+    },
+    {
+      "id": "s_residual",
+      "bytes": 16777216,
+      "evidence": "hypothesis"
+    },
+    {
+      "id": "s_moe_in",
+      "bytes": 16777216,
+      "evidence": "hypothesis"
+    },
+    {
+      "id": "s_dispatched",
+      "bytes": 134217728,
+      "evidence": "hypothesis"
+    },
+    {
+      "id": "s_fc1_out",
+      "bytes": 100663296,
+      "evidence": "hypothesis"
+    },
+    {
+      "id": "s_activated",
+      "bytes": 50331648,
+      "evidence": "hypothesis"
+    },
+    {
+      "id": "s_fc2_out",
+      "bytes": 134217728,
+      "evidence": "hypothesis"
+    },
+    {
+      "id": "s_combined",
+      "bytes": 16777216,
+      "evidence": "hypothesis"
+    },
+    {
+      "id": "s_output",
+      "bytes": 16777216,
+      "evidence": "hypothesis"
+    }
+  ]
+}
