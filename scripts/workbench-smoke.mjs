@@ -7,6 +7,8 @@ try{
  await page.goto(process.env.ACTSCOPE_URL||'http://127.0.0.1:5173');
  await page.getByRole('heading',{name:'Qwen3-235B-A22B',exact:true}).waitFor();
  assert.match(await page.locator('.wb-metrics').innerText(),/523.04 GiB/);
+ assert.equal(await page.getByRole('link',{name:'激活关系图',exact:false}).count(),0);
+ assert.equal(await page.getByRole('heading',{name:'静态显存分项表'}).count(),1);
  await page.getByLabel('GPU 总数',{exact:true}).fill('128');
  await page.getByLabel('Expert · EP',{exact:true}).fill('32');
  await page.getByLabel('状态分片',{exact:true}).selectOption('full');
@@ -15,7 +17,7 @@ try{
  await page.getByRole('alert').waitFor();
  await page.getByLabel('Tensor · TP',{exact:true}).fill('1');
  await page.getByRole('button',{name:'Qwen3 8B',exact:false}).click();
- assert.equal(await page.locator('tbody tr').count(),11);
+ assert.equal(await page.locator('.wb-tensors tbody tr').count(),11);
  await page.getByRole('button',{name:'Custom',exact:false}).first().click();
  await page.getByLabel('新变量名',{exact:true}).fill('width');await page.getByRole('button',{name:'＋ 添加变量',exact:true}).click();
  await page.getByLabel('width',{exact:true}).fill('256');
@@ -27,9 +29,12 @@ try{
  await page.getByLabel('Tensor shape',{exact:true}).fill('width, hidden_size');
  await page.reload();
  assert.equal(await page.getByLabel('width',{exact:true}).inputValue(),'256');
- await page.getByRole('tab',{name:'激活账本',exact:false}).click();
+ await page.getByRole('tab',{name:'激活显存表',exact:false}).click();
  await page.getByRole('button',{name:'＋ 添加激活示例',exact:true}).click();
  await page.getByLabel('保存者',{exact:true}).fill('fc1.backward, fc2.backward');
+ await page.getByLabel('每 token 字节公式',{exact:true}).fill('hidden_size * 2');
+ assert.match(await page.locator('.wb-act-table').innerText(), /2,048 B/);
+ assert.match(await page.locator('.wb-summary').innerText(), /16.00 MiB/);
  await page.getByLabel('激活策略',{exact:true}).selectOption('offload');
  assert.match(await page.locator('.wb-metrics').innerText(),/2.00 MiB/);
  assert.match(await page.locator('.wb-metric').nth(1).innerText(),/0 B/);

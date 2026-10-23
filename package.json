@@ -7,7 +7,7 @@
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview --host 127.0.0.1",
     "test": "vitest run",
-    "test:browser": "node scripts/smoke.mjs",
+    "test:browser": "node scripts/workbench-smoke.mjs",
     "test:workbench": "node scripts/workbench-smoke.mjs"
   },
   "repository": {
@@ -24,7 +24,6 @@
   "homepage": "https://github.com/niyunsheng/ActScope#readme",
   "private": true,
   "dependencies": {
-    "@xyflow/react": "^12.11.6",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "zod": "^4.6.5"

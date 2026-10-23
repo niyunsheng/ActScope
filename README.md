@@ -10,7 +10,7 @@
 - 参数、梯度、optimizer 精度和状态分片预设；展示最重 PP stage 的每 rank 常驻显存。
 - 点击 Tensor 展开本地 shape、分片组及完整计算公式。
 - 激活账本：定义唯一 storage、保存者、shape 和保留 / 重算 / offload 策略。
-- 模型 JSON 导入导出、响应式布局；原有激活关系图位于 `#explorer`。
+- 模型 JSON 导入导出、响应式布局；只展示表格，不包含激活关系图。
 
 ## 本地运行
 
@@ -21,17 +21,17 @@ npm ci
 npm run dev
 ```
 
-打开 Vite 输出的地址。页面使用 hash 路由：`#moe`、`#dense`、`#custom`、`#explorer`，直接刷新无需服务器回退规则。
+打开 Vite 输出的地址。页面使用 hash 路由：`#moe`、`#dense`、`#custom`，直接刷新无需服务器回退规则。
 
 ```sh
 npm test                  # 计算与图模型测试
 npm run build             # 类型检查与静态构建
 npm run preview           # 预览 dist
 npm run test:workbench     # 需先启动服务、本机安装 Chrome
-npm run test:browser       # 旧激活关系图回归检查
+npm run test:browser       # 工作台浏览器检查
 ```
 
-浏览器测试通过 `ACTSCOPE_URL` 指定服务地址。旧关系图测试使用自定义地址时请包含 `#explorer`。
+浏览器测试通过 `ACTSCOPE_URL` 指定服务地址。
 
 ## GitHub Pages
 
@@ -79,8 +79,8 @@ src/memory/engine.ts       # 数据校验、安全表达式解析、显存计算
 src/memory/presets.ts      # 模型预设与官方来源
 src/memory/Workbench.tsx   # 统一模型编辑与分析页面
 src/memory/workbench.css   # 工作台样式
-src/Root.tsx               # hash 路由 / 按需加载旧图编辑器
-src/App.tsx               # 原有激活关系图
+src/memory/Tables.tsx      # 静态分项表与每 token 激活表
+src/Root.tsx               # 工作台入口
 ```
 
 添加模型首先扩展配置，只有新分布规则才需要改动引擎。表达式支持数字、变量、括号和 `+ - * /`，不使用 `eval`。
@@ -88,3 +88,5 @@ src/App.tsx               # 原有激活关系图
 ## License
 
 MIT
+
+激活表支持直接输入每 token 字节公式，例如 `hidden_size * 2`。当前 token 数由 `tokens_per_rank` 控制；表中另列 8k / 16k 的单层保存量。导入旧版 shape 格式仍受支持。

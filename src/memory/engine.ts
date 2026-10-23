@@ -5,7 +5,7 @@ export const documentSchema = z.object({
   variables: z.array(z.object({ name: z.string().regex(/^[A-Za-z_][A-Za-z0-9_]*$/), value: z.number().positive().finite() })).max(100),
   repeats: z.string().min(1).max(200),
   tensors: z.array(z.object({ id: z.string(), name: z.string().min(1), shape: z.string().min(1).max(500), kind: z.enum(['replicated', 'tp', 'expert']), axis: z.number().int().min(0), shardUnit: z.string().max(200).optional(), trainable: z.boolean() })).max(300),
-  activations: z.array(z.object({ id: z.string(), name: z.string().min(1), savedBy: z.string(), shape: z.string().min(1).max(500), bytes: z.number().int().min(1).max(8), policy: z.enum(['keep', 'recompute', 'offload']) })).max(300),
+  activations: z.array(z.object({ id: z.string(), name: z.string().min(1), savedBy: z.string(), perToken: z.string().min(1).max(500).optional(), shape: z.string().min(1).max(500), bytes: z.number().int().min(1).max(8), policy: z.enum(['keep', 'recompute', 'offload']) })).max(300),
 });
 export type Model = z.infer<typeof documentSchema>;
 export type Kind = Model['tensors'][number]['kind'];
@@ -79,7 +79,7 @@ export function calculate(model: Model, s: Settings) {
     const optim = t.trainable ? localCount*s.optimizerBytes/so*localLayers : 0;
     return { ...t, dims, local, count, localCount, param, grad, optim, total: param+grad+optim, group, sp, sg, so };
   });
-  const acts = model.activations.map(a => { const dims = shapeOf(a.shape, vars); const size = integer(dims.reduce((x,y) => x*y, 1), '激活元素数')*a.bytes; return { ...a, dims, size }; });
+  const acts = model.activations.map(a => { const dims = a.perToken ? [] : shapeOf(a.shape, vars); const tokens = integer(vars.tokens_per_rank, 'tokens_per_rank'); const size = a.perToken ? integer(expression(a.perToken, vars), '每 token 字节数') * tokens : integer(dims.reduce((x,y) => x*y, 1), '激活元素数')*a.bytes; return { ...a, dims, size, perTokenBytes: size / tokens }; });
   const totals = rows.reduce((r,t) => ({param:r.param+t.param, grad:r.grad+t.grad, optim:r.optim+t.optim}), {param:0,grad:0,optim:0});
   return { rows, acts, totals, total:totals.param+totals.grad+totals.optim, layers, localLayers, dp, edp, globalParams:rows.reduce((n,t) => n+t.count, 0)*layers,
     activation: { all:acts.reduce((n,a)=>n+a.size,0), keep:acts.filter(a=>a.policy==='keep').reduce((n,a)=>n+a.size,0), recompute:acts.filter(a=>a.policy==='recompute').reduce((n,a)=>n+a.size,0), offload:acts.filter(a=>a.policy==='offload').reduce((n,a)=>n+a.size,0) } };
