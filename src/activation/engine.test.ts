@@ -6,9 +6,12 @@ const ids = (policy: Policy) => analyze(h3, p, policy).rows.filter(r => r.keep).
 describe('H3 DiT activation checkpoint dependencies', () => {
   it('matches the user diagram without recomputation, including shared QKV input', () => {
     expect(ids(none)).toEqual(['input','norm1','mod1','q','k','v','qr','kr','attention','out','residual','norm2','mod2','gate','up','swiglu','fc2']);
-    const hiddenBytes = p.batch*p.sequence*p.hidden*p.bytes;
-    const attnBytes = p.batch*p.sequence*p.heads*p.headDim*p.bytes;
-    expect(analyze(h3,p,none).total).toBe(8*hiddenBytes + 6*attnBytes + 3*p.batch*p.sequence*p.intermediate*p.bytes);
+    const rows = analyze(h3,p,none).rows;
+    expect(rows.find(t => t.id === 'q')!.dimensions).toEqual([p.sequence,p.heads,p.headDim]);
+    expect(rows.find(t => t.id === 'input')!.dimensions).toEqual([p.sequence,p.hidden]);
+    const hiddenBytes = p.sequence*p.hidden*p.bytes;
+    const attnBytes = p.sequence*p.heads*p.headDim*p.bytes;
+    expect(analyze(h3,p,none).total).toBe(8*hiddenBytes + 6*attnBytes + 3*p.sequence*p.intermediate*p.bytes);
   });
   it('matches the memory-bound-only diagram and GEMM+memory diagram', () => {
     expect(ids({gemm:false,fa:false,memory:true})).toEqual(['input','q','k','v','attention','out','gate','up','fc2']);

@@ -3,7 +3,7 @@ import type { Operator } from './model';
 
 type Row = Analysis['rows'][number];
 const shape = (dimensions: number[]) => `[${dimensions.join(', ')}]`;
-const features = (tensor: Row) => tensor.dimensions.slice(2).reduce((a, b) => a * b, 1);
+const features = (tensor: Row) => tensor.dimensions.slice(1).reduce((a, b) => a * b, 1);
 
 export default function NodeDetails({ operator, tensor, rows, operators }: {
   operator?: Operator; tensor?: Row; rows: Row[]; operators: Operator[];

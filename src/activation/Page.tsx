@@ -25,14 +25,13 @@ export default function ActivationPage({ model }: { model: Model }) {
     <div className="ag-main">
       <section className="ag-parameter-block" aria-label="Model and single-layer parameters">
         <div className="ag-fixed-parameters">
-          <label className="ag-sequence-field">Sequence length · S<input aria-label="Sequence length · S" type="number" min={1} step={1} value={sequence || ''} onChange={e => setSequence(Number(e.target.value))} /></label>
+          <label className="ag-sequence-field">Token count · T<input aria-label="Token count · T" type="number" min={1} step={1} value={sequence || ''} onChange={e => setSequence(Number(e.target.value))} /></label>
           <div><span>Hidden size</span><strong>{params.hidden}</strong></div>
           <div><span>FFN intermediate</span><strong>{params.intermediate}</strong></div>
           <div><span>Attention heads</span><strong>{params.heads}</strong></div>
           <div><span>Head dimension</span><strong>{params.headDim}</strong></div>
           <div><span>Q / K / V width</span><strong>{params.heads * params.headDim}</strong></div>
           <div><span>Activation dtype</span><strong>BF16</strong></div>
-          <div><span>Microbatch size</span><strong>1</strong></div>
         </div>
       </section>
       {error && <div className="ag-error" role="alert">{error}</div>}

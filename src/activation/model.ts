@@ -2,15 +2,15 @@ import { h3Config } from './h3-config';
 export type RuleKey = 'linear' | 'norm' | 'modulate' | 'rope' | 'attention' | 'swiglu' | 'residual';
 export type Category = 'gemm' | 'fa' | 'memory';
 export type Policy = Record<Category, boolean>;
-export interface Parameters { batch: number; sequence: number; hidden: number; intermediate: number; heads: number; kvHeads: number; headDim: number; bytes: number }
+export interface Parameters { sequence: number; hidden: number; intermediate: number; heads: number; kvHeads: number; headDim: number; bytes: number }
 export interface Tensor { id: string; label: string; shape: (p: Parameters) => number[]; formula: string; x: number; y: number }
 export interface Operator { rule: RuleKey; id: string; label: string; category: Category; inputs: string[]; outputs: string[]; backward: string[]; x: number; y: number }
 export interface Model { id: string; name: string; tensors: Tensor[]; operators: Operator[]; boundary: string[]; defaults: Parameters }
-const hidden = (p: Parameters) => [p.batch, p.sequence, p.hidden];
-const q = (p: Parameters) => [p.batch, p.sequence, p.heads, p.headDim];
-const kv = (p: Parameters) => [p.batch, p.sequence, p.kvHeads, p.headDim];
-const ff = (p: Parameters) => [p.batch, p.sequence, p.intermediate];
-const t = (id: string, label: string, x: number, y: number, shape = hidden, formula = 'B × S × H'): Tensor => ({ id, label, x, y, shape, formula });
+const hidden = (p: Parameters) => [p.sequence, p.hidden];
+const q = (p: Parameters) => [p.sequence, p.heads, p.headDim];
+const kv = (p: Parameters) => [p.sequence, p.kvHeads, p.headDim];
+const ff = (p: Parameters) => [p.sequence, p.intermediate];
+const t = (id: string, label: string, x: number, y: number, shape = hidden, formula = 'T × H'): Tensor => ({ id, label, x, y, shape, formula });
 const categories: Record<RuleKey, Category> = {
   linear: 'gemm', attention: 'fa', norm: 'memory', modulate: 'memory', rope: 'memory', swiglu: 'memory', residual: 'memory',
 };
@@ -18,21 +18,22 @@ const op = (id: string, label: string, rule: RuleKey, inputs: string[], outputs:
   ({ id, label, rule, category: categories[rule], inputs, outputs, backward, x, y });
 // User-supplied MiniMaxH3Transformer3DModel config and DiT diagram.
 // Config has no separate KV-head count: assume standard MHA, Nkv = Nq = 56.
-// Batch is fixed to 1 for per-sequence, per-layer accounting; BF16 is 2 bytes.
+// Token-major layout: attention tensors use [T, heads, headDim]; other activations use [T, width].
+// T is the total token count; BF16 is 2 bytes.
 // Conditioning, weights, positional constants, RNG and kernel auxiliary state are outside this main-activation ledger.
 export const h3: Model = {
   id: 'minimax-h3-dit', name: 'MiniMax H3 · DiT',
-  defaults: { batch: 1, sequence: 4096, hidden: h3Config.hidden_size, intermediate: h3Config.ffn_dim, heads: h3Config.num_attention_heads, kvHeads: h3Config.num_attention_heads, headDim: h3Config.attention_head_dim, bytes: 2 },
+  defaults: { sequence: 4096, hidden: h3Config.hidden_size, intermediate: h3Config.ffn_dim, heads: h3Config.num_attention_heads, kvHeads: h3Config.num_attention_heads, headDim: h3Config.attention_head_dim, bytes: 2 },
   boundary: ['input'],
   tensors: [
     t('input', 'Block input', 250, 35), t('norm1', 'Norm output', 250, 135), t('mod1', 'Modulate output', 250, 235),
-    t('q', 'Q', 90, 340, q, 'B × S × Nq × D'), t('k', 'K', 250, 340, kv, 'B × S × Nkv × D'), t('v', 'V', 410, 340, kv, 'B × S × Nkv × D'),
-    t('qn', 'Q norm', 90, 440, q, 'B × S × Nq × D'), t('kn', 'K norm', 250, 440, kv, 'B × S × Nkv × D'),
-    t('qr', 'Q RoPE', 90, 540, q, 'B × S × Nq × D'), t('kr', 'K RoPE', 250, 540, kv, 'B × S × Nkv × D'),
-    t('attention', 'FA output', 250, 650, q, 'B × S × Nq × D'), t('out', 'O projection', 250, 750),
+    t('q', 'Q', 90, 340, q, 'T × Nq × D'), t('k', 'K', 250, 340, kv, 'T × Nkv × D'), t('v', 'V', 410, 340, kv, 'T × Nkv × D'),
+    t('qn', 'Q norm', 90, 440, q, 'T × Nq × D'), t('kn', 'K norm', 250, 440, kv, 'T × Nkv × D'),
+    t('qr', 'Q RoPE', 90, 540, q, 'T × Nq × D'), t('kr', 'K RoPE', 250, 540, kv, 'T × Nkv × D'),
+    t('attention', 'FA output', 250, 650, q, 'T × Nq × D'), t('out', 'O projection', 250, 750),
     t('residual', 'Attention residual', 250, 850), t('norm2', 'FFN norm', 250, 950), t('mod2', 'FFN modulate', 250, 1050),
-    t('gate', 'Gate', 200, 1150, ff, 'B × S × I'), t('up', 'Up', 340, 1150, ff, 'B × S × I'),
-    t('swiglu', 'SwiGLU output', 250, 1250, ff, 'B × S × I'), t('fc2', 'FC2 output', 250, 1350), t('output', 'Block output', 250, 1450),
+    t('gate', 'Gate', 200, 1150, ff, 'T × I'), t('up', 'Up', 340, 1150, ff, 'T × I'),
+    t('swiglu', 'SwiGLU output', 250, 1250, ff, 'T × I'), t('fc2', 'FC2 output', 250, 1350), t('output', 'Block output', 250, 1450),
   ],
   operators: [
     // Norm backward: input X + external affine weights and mean/rstd (auxiliary not counted); no Y.

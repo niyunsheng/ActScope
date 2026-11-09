@@ -17,7 +17,7 @@ try {
     assert.equal(await page.getByTestId('weight-shape').innerText(),expected);
   }
   await page.locator('[data-tensor="q"]').hover();
-  assert.equal(await page.getByTestId('tensor-shape').innerText(),'[1, 4096, 56, 128]');
+  assert.equal(await page.getByTestId('tensor-shape').innerText(),'[4096, 56, 128]');
   assert.equal(await page.getByTestId('tensor-size').innerText(),'56.00 MiB');
   assert.equal(await page.locator('[data-tensor="q"]').getAttribute('title'),null);
   await page.locator('[data-tensor="q"]').click();
@@ -38,6 +38,7 @@ try {
   assert.match(await information.innerText(),/Bwd used by: None/);
   await page.mouse.move(1,1);
   assert.equal(await information.innerText(),'Scroll to zoom · Drag graph or nodes to pan');
+  assert.equal(await page.getByText('Microbatch size',{exact:true}).count(),0);
   const counts=[17,9,2,1];
   const labels=['No recomputation','Recompute memory-bound','Recompute memory-bound + GEMM','Full recompute (memory-bound + GEMM + FA)'];
   for(const level of [0,1,2,3,2,1,0,3]) {
@@ -46,12 +47,12 @@ try {
     assert.equal(await page.locator('input[name="recompute-level"]:checked').count(),1);
   }
   assert.equal(await page.getByTestId('current-memory').innerText(),'42.00 MiB');
-  await page.getByLabel('Sequence length · S',{exact:true}).fill('8192');
+  await page.getByLabel('Token count · T',{exact:true}).fill('8192');
   assert.equal(await page.getByTestId('current-memory').innerText(),'84.00 MiB');
   assert.deepEqual(await page.locator('.ag-strategy-bytes').allTextContents(),['1.97 GiB','1.12 GiB','196.00 MiB','84.00 MiB']);
-  await page.getByLabel('Sequence length · S',{exact:true}).fill('0');
+  await page.getByLabel('Token count · T',{exact:true}).fill('0');
   assert.equal(await page.getByRole('alert').count(),1);
-  await page.getByLabel('Sequence length · S',{exact:true}).fill('4096');
+  await page.getByLabel('Token count · T',{exact:true}).fill('4096');
   await page.getByRole('radio',{name:'Recompute memory-bound + GEMM',exact:true}).check();
   assert.equal(await page.locator('table, svg, .ag-ledger, .ag-op-inspector').count(),0);
   const colors=await page.locator('.ag-operator').evaluateAll(ns=>[...new Set(ns.map(n=>getComputedStyle(n).backgroundColor))]);

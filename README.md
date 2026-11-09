@@ -2,7 +2,7 @@
 
 An interactive single-layer activation memory visualizer showing backward dependencies and how recomputation changes saved tensors. Built with React and TypeScript as a static website.
 
-Currently supports **one MiniMax H3 DiT layer**, excluding the text refiner. Sequence length is editable; activation dtype is fixed to BF16 and batch size to 1.
+Currently supports **one MiniMax H3 DiT layer**, excluding the text refiner. Total token count T is editable; activation dtype is fixed to BF16. Attention activations use THD layout `[T, heads, head_dim]`; other activations use `[T, width]`, with no separate batch dimension.
 
 ## Run locally
 
