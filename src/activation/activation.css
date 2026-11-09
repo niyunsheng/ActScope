@@ -18,13 +18,16 @@
 }
 
 .ag-header {
+  position: sticky;
+  top: 0;
+  z-index: 20;
   height: 68px;
   background: #fff;
   border-bottom: 1px solid var(--line);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 32px;
+  padding: 0 84px 0 32px;
 }
 
 .ag-brand {
@@ -599,32 +602,42 @@
   }
 }
 
-.ag-header .ag-model-inline {
+.ag-header-brand {
   display: flex;
   align-items: center;
-  gap: 10px;
-  font-size: 11px;
-  color: #7a8a9c;
+  gap: 18px;
+  min-width: 0;
 }
 
-.ag-header .ag-model-inline select {
+.ag-header .ag-model-select {
   margin: 0;
-  width: 220px;
+  width: 180px;
   font-size: 12px;
+  background: #f5f7fa;
+  border-radius: 20px;
 }
+
+.ag-github-corner {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 68px;
+  height: 68px;
+  clip-path: polygon(0 0, 100% 0, 100% 100%);
+}
+
+.ag-github-corner svg { display: block; width: 100%; height: 100%; }
+.ag-corner-background { fill: #233246; transition: fill .15s; }
+.ag-corner-logo { fill: white; }
+.ag-github-corner:hover .ag-corner-background,
+.ag-github-corner:focus-visible .ag-corner-background { fill: #318a87; }
 
 @media (max-width:480px) {
-  .ag-header .ag-model-inline {
-    gap: 7px;
-  }
-
-  .ag-header .ag-model-inline select {
-    width: 180px;
-  }
-
-  .ag-header {
-    padding: 0 14px;
-  }
+  .ag-header { padding: 0 12px; gap: 8px; }
+  .ag-header-brand { gap: 8px; }
+  .ag-brand { font-size: 18px; }
+  .ag-header .ag-model-select { width: 130px; font-size: 10px; padding: 8px 6px; }
+  .ag-header { padding-right: 76px; }
 }
 
 .ag-zoom-toolbar > .ag-node-summary {

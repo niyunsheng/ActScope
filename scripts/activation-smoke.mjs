@@ -6,6 +6,9 @@ try {
   const errors=[];page.on('pageerror',e=>errors.push(e.message));
   await page.goto(process.env.ACTSCOPE_URL || 'http://127.0.0.1:5190/#/models/minimax-h3-dit');
   await page.getByLabel('Select model',{exact:true}).waitFor();
+  assert.equal(await page.getByRole('link',{name:'Star on GitHub'}).getAttribute('href'),'https://github.com/niyunsheng/ActScope');
+  assert.equal(await page.locator('.ag-header-brand').getByLabel('Select model').count(),1);
+  assert.equal(await page.locator('.ag-header').getByText('Model',{exact:true}).count(),0);
   assert.equal(await page.getByText('/ activation lab',{exact:true}).count(),0);
   assert.deepEqual(await page.locator('.ag-strategy-bytes').allTextContents(),['1008.00 MiB','574.00 MiB','98.00 MiB','42.00 MiB']);
   assert.equal(await page.locator('input[type=number]').count(),1);
@@ -54,7 +57,7 @@ try {
   assert.equal(await page.getByRole('alert').count(),1);
   await page.getByLabel('Token count · T',{exact:true}).fill('4096');
   await page.getByRole('radio',{name:'Recompute memory-bound + GEMM',exact:true}).check();
-  assert.equal(await page.locator('table, svg, .ag-ledger, .ag-op-inspector').count(),0);
+  assert.equal(await page.locator('table, .ag-diagram svg, .ag-ledger, .ag-op-inspector').count(),0);
   const colors=await page.locator('.ag-operator').evaluateAll(ns=>[...new Set(ns.map(n=>getComputedStyle(n).backgroundColor))]);
   assert.equal(colors.length,2);
   assert.equal(await page.locator('.ag-operator.compute-bound').count(),7);

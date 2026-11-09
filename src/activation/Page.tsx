@@ -21,7 +21,20 @@ export default function ActivationPage({ model }: { model: Model }) {
   const { results, error } = data;
   const result = results?.[level];
   return <main className="activation-page ag-single-layer">
-    <header className="ag-header"><div className="ag-brand">ActScope</div><label className="ag-model-inline">Model<select aria-label="Select model" value={model.id} onChange={e => { location.hash = `/models/${e.target.value}`; }}>{models.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}</select></label></header>
+    <header className="ag-header">
+      <div className="ag-header-brand">
+        <div className="ag-brand">ActScope</div>
+        <select className="ag-model-select" aria-label="Select model" value={model.id} onChange={e => { location.hash = `/models/${e.target.value}`; }}>
+          {models.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
+        </select>
+      </div>
+      <a className="ag-github-corner" href="https://github.com/niyunsheng/ActScope" target="_blank" rel="noopener noreferrer" aria-label="Star on GitHub" title="Star on GitHub">
+        <svg viewBox="0 0 100 100" aria-hidden="true">
+          <path className="ag-corner-background" d="M0 0H100V100Z" />
+          <path className="ag-corner-logo" transform="translate(57 10) rotate(45 12 12) scale(1.3)" d="M12 .297C5.37.297 0 5.67 0 12.297c0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.043-1.61-4.043-1.61-.546-1.387-1.333-1.756-1.333-1.756-1.09-.745.083-.73.083-.73 1.205.085 1.838 1.237 1.838 1.237 1.07 1.835 2.807 1.305 3.492.998.108-.776.42-1.305.763-1.605-2.665-.305-5.467-1.335-5.467-5.93 0-1.31.468-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23a11.5 11.5 0 0 1 3.003-.404c1.02.005 2.045.138 3.003.404 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.607-2.805 5.625-5.475 5.922.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12" />
+        </svg>
+      </a>
+    </header>
     <div className="ag-main">
       <section className="ag-parameter-block" aria-label="Model and single-layer parameters">
         <div className="ag-fixed-parameters">
