@@ -40,20 +40,22 @@ export default function ActivationPage({ model }: { model: Model }) {
         <div className="ag-fixed-parameters">
           <label className="ag-sequence-field">Token count · T<input aria-label="Token count · T" type="number" min={1} step={1} value={sequence || ''} onChange={e => setSequence(Number(e.target.value))} /></label>
           <div><span>Hidden size</span><strong>{params.hidden}</strong></div>
-          <div><span>FFN intermediate</span><strong>{params.intermediate}</strong></div>
+          <div><span>{model.facts ? 'Expert intermediate' : 'FFN intermediate'}</span><strong>{params.intermediate}</strong></div>
           <div><span>Attention heads</span><strong>{params.heads}</strong></div>
           <div><span>Head dimension</span><strong>{params.headDim}</strong></div>
           <div><span>Q / K / V width</span><strong>{params.heads * params.headDim}</strong></div>
-          <div><span>Activation dtype</span><strong>BF16</strong></div>
+          <div><span>Activation dtype</span><strong>{model.facts ? 'BF16 / FP32' : 'BF16'}</strong></div>
+          {model.facts?.map(fact => <div key={fact.label}><span>{fact.label}</span><strong>{fact.value}</strong></div>)}
         </div>
       </section>
+      {model.note && <p className="ag-model-note">{model.note}</p>}
       {error && <div className="ag-error" role="alert">{error}</div>}
       <fieldset className="ag-strategies"><legend>Saved activations per layer · Select a strategy to update the graph</legend>{levels.map((item,index) => {
         const summary = results?.[index];
         return <label className={`ag-strategy ${level === index ? 'active' : ''}`} key={item.label}>
           <input type="radio" name="recompute-level" aria-label={item.label} value={index} checked={level === index} onChange={() => setLevel(index)} />
           <span className="ag-strategy-heading"><span className="ag-level-number">{index}</span><strong>{item.label}</strong><span className="ag-choice-mark" aria-hidden="true">{level === index ? '●' : '○'}</span></span>
-          <span className="ag-strategy-description">{index === 0 ? 'No recomputation' : item.detail}</span>
+          <span className="ag-strategy-description">{index === 0 ? 'No recomputation' : index === 1 && model.facts ? 'Norm, routing, SiLU, dispatch, combine' : item.detail}</span>
           <strong className="ag-strategy-bytes" data-testid={index === level ? 'current-memory' : undefined}>{summary ? formatBytes(summary.total) : '—'}</strong>
           <span className="ag-strategy-footer">{summary ? `${summary.savedCount} tensors saved` : 'Check parameters'}<span>{summary && results ? `Saved ${((1-summary.total/results[0].total)*100).toFixed(1)}%` : ''}</span></span>
         </label>;

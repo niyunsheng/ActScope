@@ -1,18 +1,19 @@
+import { lingbot } from './lingbot';
 import { h3Config } from './h3-config';
-export type RuleKey = 'linear' | 'norm' | 'modulate' | 'rope' | 'attention' | 'swiglu' | 'residual';
+export type RuleKey = 'linear' | 'norm' | 'modulate' | 'rope' | 'attention' | 'swiglu' | 'residual' | 'cast' | 'sigmoid' | 'route' | 'dispatch' | 'silu' | 'multiply' | 'combine' | 'add';
 export type Category = 'gemm' | 'fa' | 'memory';
 export type Policy = Record<Category, boolean>;
 export interface Parameters { sequence: number; hidden: number; intermediate: number; heads: number; kvHeads: number; headDim: number; bytes: number }
-export interface Tensor { id: string; label: string; shape: (p: Parameters) => number[]; formula: string; x: number; y: number }
-export interface Operator { rule: RuleKey; id: string; label: string; category: Category; inputs: string[]; outputs: string[]; backward: string[]; x: number; y: number }
-export interface Model { id: string; name: string; tensors: Tensor[]; operators: Operator[]; boundary: string[]; defaults: Parameters }
+export interface Tensor { dtype?: 'BF16' | 'FP32'; id: string; label: string; shape: (p: Parameters) => number[]; formula: string; x: number; y: number }
+export interface Operator { weightShape?: number[]; inputLanes?: Record<string, number>; rule: RuleKey; id: string; label: string; category: Category; inputs: string[]; outputs: string[]; backward: string[]; x: number; y: number }
+export interface Model { layout?: { width: number; height: number }; facts?: { label: string; value: string | number }[]; note?: string; id: string; name: string; tensors: Tensor[]; operators: Operator[]; boundary: string[]; defaults: Parameters }
 const hidden = (p: Parameters) => [p.sequence, p.hidden];
 const q = (p: Parameters) => [p.sequence, p.heads, p.headDim];
 const kv = (p: Parameters) => [p.sequence, p.kvHeads, p.headDim];
 const ff = (p: Parameters) => [p.sequence, p.intermediate];
 const t = (id: string, label: string, x: number, y: number, shape = hidden, formula = 'T × H'): Tensor => ({ id, label, x, y, shape, formula });
 const categories: Record<RuleKey, Category> = {
-  linear: 'gemm', attention: 'fa', norm: 'memory', modulate: 'memory', rope: 'memory', swiglu: 'memory', residual: 'memory',
+  linear: 'gemm', attention: 'fa', norm: 'memory', modulate: 'memory', rope: 'memory', swiglu: 'memory', residual: 'memory', cast: 'memory', sigmoid: 'memory', route: 'memory', dispatch: 'memory', silu: 'memory', multiply: 'memory', combine: 'memory', add: 'memory',
 };
 const op = (id: string, label: string, rule: RuleKey, inputs: string[], outputs: string[], backward: string[], x: number, y: number): Operator =>
   ({ id, label, rule, category: categories[rule], inputs, outputs, backward, x, y });
@@ -74,4 +75,4 @@ export const h3: Model = {
     op('r2', 'gated_residual', 'residual', ['residual', 'fc2'], ['output'], ['fc2'], 250, 1400),
   ],
 };
-export const models = [h3];
+export const models = [h3, lingbot];

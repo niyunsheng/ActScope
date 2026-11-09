@@ -1,11 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import type { HTMLAttributes } from 'react';
 
-const WIDTH = 520;
-const HEIGHT = 1490;
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
 
-export function useGraphViewport(onMove: () => void, onBlankClick: () => void) {
+export function useGraphViewport(onMove: () => void, onBlankClick: () => void, width = 520, height = 1490) {
   const viewport = useRef<HTMLDivElement>(null);
   const [view, setView] = useState({ scale: 1, x: 0, y: 16 });
   const [dragging, setDragging] = useState(false);
@@ -16,12 +14,12 @@ export function useGraphViewport(onMove: () => void, onBlankClick: () => void) {
   callbacks.current = { onMove, onBlankClick };
 
   const center = (scale: number) => {
-    setView({ scale, x: (viewport.current!.clientWidth - WIDTH * scale) / 2, y: 16 });
+    setView({ scale, x: (viewport.current!.clientWidth - width * scale) / 2, y: 16 });
     callbacks.current.onMove();
   };
   const fit = () => {
     const el = viewport.current!;
-    center(clamp(Math.min((el.clientWidth - 32) / WIDTH, (el.clientHeight - 32) / HEIGHT), .2, 1));
+    center(clamp(Math.min((el.clientWidth - 32) / width, (el.clientHeight - 32) / height), .2, 1));
   };
   const zoom = (factor: number, x: number, y: number) => {
     setView(v => {
@@ -44,7 +42,7 @@ export function useGraphViewport(onMove: () => void, onBlankClick: () => void) {
     const observer = new ResizeObserver(fit);
     observer.observe(el);
     return () => { el.removeEventListener('wheel', wheel); observer.disconnect(); };
-  }, []);
+  }, [width, height]);
 
   const endDrag = () => { drag.current = null; setDragging(false); };
   const panHandlers: HTMLAttributes<HTMLDivElement> = {

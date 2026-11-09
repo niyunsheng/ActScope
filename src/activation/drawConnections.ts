@@ -2,7 +2,7 @@ import type { Model } from './model';
 
 export function drawConnections(canvas: HTMLCanvasElement, model: Model, selectedOp: string | null, selectedTensor: string | null, scale: number) {
     const el = canvas; const dpr = (window.devicePixelRatio || 1) * Math.max(1, scale);
-    el.width = 520 * dpr; el.height = 1490 * dpr;
+    el.width = (model.layout?.width ?? 520) * dpr; el.height = (model.layout?.height ?? 1490) * dpr;
     const ctx = el.getContext('2d')!; ctx.scale(dpr, dpr);
     const ts = new Map(model.tensors.map(t => [t.id, t]));
     function arrow(points: [number, number][]) {
@@ -17,8 +17,8 @@ export function drawConnections(canvas: HTMLCanvasElement, model: Model, selecte
     for (const op of model.operators) {
       for (const id of op.inputs) {
         const t = ts.get(id)!;
-        if (op.id === 'r1' && id === 'input' || op.id === 'r2' && id === 'residual') {
-          const lane = op.id === 'r1' ? 492 : 470;
+        const lane = op.inputLanes?.[id] ?? (op.id === 'r1' && id === 'input' ? 492 : op.id === 'r2' && id === 'residual' ? 470 : undefined);
+        if (lane !== undefined) {
           arrow([[t.x + 9, t.y], [lane, t.y], [lane, op.y], [op.x + 65, op.y]]);
         } else {
           const y = op.y - 26;

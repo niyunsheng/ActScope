@@ -140,6 +140,37 @@ try {
   await page.mouse.move(1,1);
   await page.reload();
   assert.equal(await page.getByRole('tooltip').count(),0);
+  // Model switching uses the same renderer and engine; mixed precision is per tensor.
+  await page.setViewportSize({width:1512,height:1050});
+  await page.getByLabel('Select model').selectOption('lingbot-video-moe');
+  await page.waitForURL('**/#/models/lingbot-video-moe');
+  assert.deepEqual(await page.locator('.ag-strategy-bytes').allTextContents(),['890.06 MiB','350.00 MiB','32.00 MiB','16.00 MiB']);
+  for (const [index,count] of [29,13,2,1].entries()) {
+    await page.getByRole('radio',{name:labels[index],exact:true}).check();
+    assert.equal(await page.locator('.ag-tensor.saved').count(),count);
+  }
+  await page.locator('[data-operator="w1"]').hover();
+  assert.equal(await page.getByTestId('weight-shape').innerText(),'[128, 768, 2048]');
+  await page.locator('[data-operator="router"]').hover();
+  assert.equal(await page.getByTestId('weight-shape').innerText(),'[128, 2048]');
+  await page.locator('[data-tensor="routerInput"]').hover();
+  assert.match(await information.innerText(),/FP32/);
+  assert.equal(await page.getByTestId('tensor-size').innerText(),'32.00 MiB');
+  await page.locator('[data-tensor="dispatch"]').hover();
+  assert.equal(await page.getByTestId('tensor-shape').innerText(),'[32768, 2048]');
+  assert.equal(await page.getByTestId('tensor-size').innerText(),'128.00 MiB');
+  await page.locator('[data-operator="combine"]').hover();
+  assert.deepEqual(await dependencies(),['weights','expertFloat']);
+  await page.getByLabel('Token count · T').fill('8192');
+  assert.equal(await page.getByTestId('current-memory').innerText(),'32.00 MiB');
+  await page.reload();
+  assert.equal(await page.getByLabel('Select model').inputValue(),'lingbot-video-moe');
+  await page.setViewportSize({width:390,height:844});
+  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
+  await page.screenshot({path:'/tmp/actscope-lingbot-mobile.png',fullPage:true});
+  await page.getByLabel('Select model').selectOption('minimax-h3-dit');
+  await page.waitForURL('**/#/models/minimax-h3-dit');
+  assert.deepEqual(await page.locator('.ag-strategy-bytes').allTextContents(),['1008.00 MiB','574.00 MiB','98.00 MiB','42.00 MiB']);
   assert.deepEqual(errors,[]);
   console.log('Passed: 4 cumulative levels (up/down), validation, 2 operator colors, hover/leave, no pinned click, no operator annotations, dependencies, keyboard, no ledger, mobile, cursor-centered wheel zoom, pan, reset.');
 } finally {await browser.close();}

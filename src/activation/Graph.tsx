@@ -8,7 +8,7 @@ import NodeDetails from './NodeDetails';
 export default function Graph({ model, result }: { model: Model; result: Analysis }) {
   const [hoveredTensor, setHoveredTensor] = useState<string | null>(null);
   const [selectedOp, setSelectedOp] = useState<string | null>(null);
-  const { viewport, view, dragging, fit, reset, zoomCenter, panHandlers } = useGraphViewport(() => { setSelectedOp(null); setHoveredTensor(null); }, () => {setSelectedOp(null);setHoveredTensor(null);});
+  const { viewport, view, dragging, fit, reset, zoomCenter, panHandlers } = useGraphViewport(() => { setSelectedOp(null); setHoveredTensor(null); }, () => {setSelectedOp(null);setHoveredTensor(null);}, model.layout?.width, model.layout?.height);
   useEffect(() => {
     const clear = () => { setSelectedOp(null); setHoveredTensor(null); };
     const key = (e: KeyboardEvent) => { if (e.key === 'Escape') { clear();  } };
@@ -32,8 +32,8 @@ export default function Graph({ model, result }: { model: Model; result: Analysi
     <div ref={viewport} className={`ag-scroll ag-zoom-viewport ${dragging ? 'dragging' : ''}`} aria-label="Zoomable graph"
       {...panHandlers}
 
-    ><div className="ag-diagram" aria-label="DiT Single-layer graph" style={{transform:`translate(${view.x}px, ${view.y}px) scale(${view.scale})`}}>
-    <canvas ref={canvas} aria-hidden="true" />
+    ><div className="ag-diagram" aria-label={`${model.name} single-layer graph`} style={{width: model.layout?.width, height: model.layout?.height, transform:`translate(${view.x}px, ${view.y}px) scale(${view.scale})`}}>
+    <canvas ref={canvas} aria-hidden="true" style={{width: model.layout?.width, height: model.layout?.height}} />
     {model.operators.map(op => <button type="button" key={op.id} data-operator={op.id} data-backward-consumer={consumers.has(op.id)} aria-label={`Operator ${op.label} (${op.id})`} onMouseEnter={() => { if (!dragging) setSelectedOp(op.id); }} onMouseLeave={() => setSelectedOp(null)} onFocus={() => setSelectedOp(op.id)} onBlur={() => setSelectedOp(null)} className={`ag-operator ${op.category === 'memory' ? 'memory-bound' : 'compute-bound'} ${selectedOp === op.id || consumers.has(op.id) ? 'inspected' : ''}`} style={{ left: op.x, top: op.y }}>{op.label}</button>)}
     {result.rows.map(t => <button key={t.id} data-tensor={t.id} onMouseEnter={() => { if (!dragging) setHoveredTensor(t.id); }} onMouseLeave={() => setHoveredTensor(null)} onFocus={() => setHoveredTensor(t.id)} onBlur={() => setHoveredTensor(null)} data-backward-dependency={dependencies.has(t.id)} className={`ag-tensor ${t.keep ? 'saved' : 'released'} ${dependencies.has(t.id) || hoveredTensor === t.id ? 'dependency' : ''}`} style={{ left: t.x, top: t.y }} aria-label={`${t.label}: ${t.keep ? 'Saved' : 'Not saved'}, ${formatBytes(t.bytes)}`}><span className="ag-dot" /><span className="ag-tensor-label">{t.label}</span></button>)}
   </div>

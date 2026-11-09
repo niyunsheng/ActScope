@@ -2,7 +2,7 @@
 
 An interactive single-layer activation memory visualizer showing backward dependencies and how recomputation changes saved tensors. Built with React and TypeScript as a static website.
 
-Currently supports **one MiniMax H3 DiT layer**, excluding the text refiner. Total token count T is editable; activation dtype is fixed to BF16. Attention activations use THD layout `[T, heads, head_dim]`; other activations use `[T, width]`, with no separate batch dimension.
+Supports a single **MiniMax H3 DiT** or **LingBot Video MoE 30B-A3B** layer, selected beside ActScope. Refiner layers are excluded. Total token count T is editable; main activations use BF16 (LingBot router and weighted-combine inputs also include FP32). Attention activations use THD layout `[T, heads, head_dim]`; other activations use `[T, width]`, with no separate batch dimension.
 
 ## Run locally
 
@@ -24,7 +24,9 @@ Open the [local app](http://127.0.0.1:5190/).
 
 Estimates **main activations retained for backward** for one layer on one GPU without sharding. This is not peak GPU memory. Parameters, gradients, optimizer states, conditioning branches, norm statistics, FA LSE, and temporary workspaces are excluded.
 
-The model follows a user-provided configuration and diagram. Assumptions include standard MHA, fixed RoPE, fused SwiGLU, zero attention dropout, and trainable modulation and residual gates. See [model.ts](src/activation/model.ts) for operator dependencies and [h3-config.ts](src/activation/h3-config.ts) for dimensions. Estimates have not been validated against the official H3 implementation or GPU measurements.
+H3 follows a user-provided configuration and diagram. Assumptions include standard MHA, fixed RoPE, fused SwiGLU, zero attention dropout, and trainable modulation and residual gates. See [model.ts](src/activation/model.ts) for operator dependencies and [h3-config.ts](src/activation/h3-config.ts) for dimensions. Estimates have not been validated against the official H3 implementation or GPU measurements.
+
+LingBot uses the [official implementation and checkpoint config](docs/lingbot-video.md): 128 routed experts, top-8 routing, and one shared expert. T includes video and text tokens. Its source references, mixed-precision accounting and training assumptions are documented there.
 
 ## Development and deployment
 
@@ -36,4 +38,4 @@ npm run test:browser  # Requires the local server and Chrome
 npm run build         # Type checking and production build
 ```
 
-Deploy `dist/` to GitHub Pages.
+Deploy `dist/` to GitHub Pages. Changes must go through a feature branch and PR; `main` requires the `validate` check and disallows direct or forced pushes, including administrators.

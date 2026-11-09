@@ -579,8 +579,8 @@
 }
 
 .ag-fixed-parameters>div {
-  flex: 1;
-  min-width: 88px;
+  flex: 1 0 auto;
+  min-width: max-content;
   white-space: nowrap;
 }
 
@@ -656,3 +656,5 @@
 @media (max-width: 700px) {
   .ag-zoom-toolbar > .ag-node-summary { flex-basis: 100%; }
 }
+
+.ag-model-note { color: var(--muted); font-size: 11px; line-height: 1.5; }
