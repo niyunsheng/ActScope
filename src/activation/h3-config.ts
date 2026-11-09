@@ -1,0 +1,23 @@
+/** MiniMax H3 configuration supplied by the user; single-layer accounting excludes refiner and I/O modules. */
+export const h3Config = {
+  _class_name: 'MiniMaxH3Transformer3DModel',
+  _diffusers_version: '0.36.0.dev0',
+  num_attention_heads: 56,
+  attention_head_dim: 128,
+  hidden_size: 5376,
+  num_layers: 50,
+  num_refiner_layers: 2,
+  ffn_dim: 14336,
+  in_channels: 24,
+  audio_in_channels: 32,
+  patch_size: [1, 2, 2],
+  text_dim: 5120,
+  freq_dim: 256,
+  time_embed_hidden_dim: 5376,
+  time_embed_dim: 2688,
+  rope_freq_dim: 16,
+  rope_theta: 10000,
+  norm_eps: 1e-5,
+  qk_norm_eps: 1e-5,
+  final_norm_eps: 1e-5,
+} as const;

@@ -1,0 +1,28 @@
+import type { Analysis } from './engine';
+import type { Operator } from './model';
+
+type Row = Analysis['rows'][number];
+const shape = (dimensions: number[]) => `[${dimensions.join(', ')}]`;
+const features = (tensor: Row) => tensor.dimensions.slice(2).reduce((a, b) => a * b, 1);
+
+export default function NodeDetails({ operator, tensor, rows, operators }: {
+  operator?: Operator; tensor?: Row; rows: Row[]; operators: Operator[];
+}) {
+  const inputs = operator?.inputs.map(id => rows.find(row => row.id === id)!) ?? [];
+  const outputs = operator?.outputs.map(id => rows.find(row => row.id === id)!) ?? [];
+  return <span className="ag-node-summary" aria-label="Node information">
+    {operator ? <>
+      <strong>{operator.label}</strong>
+      {operator.category === 'gemm' && <> · W [out, in] <code data-testid="weight-shape">{shape([outputs.reduce((sum, row) => sum + features(row), 0), features(inputs[0])])}</code></>}
+      <span> · Bwd needs: {operator.backward.map(id => {
+        const row = rows.find(row => row.id === id)!;
+        return row.label;
+      }).join(', ') || 'None'}</span>
+    </> : tensor ? <>
+      <strong>{tensor.label}</strong> · <code data-testid="tensor-shape">{shape(tensor.dimensions)}</code>
+      {' · '}<strong data-testid="tensor-size">{(tensor.bytes / 1024 ** 2).toFixed(2)} MiB</strong>
+      {' · '}{tensor.keep ? 'Saved' : 'Not retained'}
+      <span> · Bwd used by: {operators.filter(op => op.backward.includes(tensor.id)).map(op => op.label).join(', ') || 'None'}</span>
+    </> : 'Scroll to zoom · Drag graph or nodes to pan'}
+  </span>;
+}
