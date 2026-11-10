@@ -36,3 +36,5 @@ This is a **logical training activation estimate**, not an exact PyTorch saved-t
 The [official EPBuffer training example](https://github.com/deepseek-ai/DeepEP#interfaces-and-examples), checked 2026-11-10, specifies the expanded layout, FP32 routing weights, BF16 combine input and saved-handle backward helpers. This graph targets that interface, not the legacy low-latency weighted-combine API.
 
 Tests cover mixed precision, index lifetime, handle exclusion, all eight recomputation policies and finite-difference router/weighting gradients. They do not execute DeepEP GPU kernels.
+
+The three FFN branch entries share a visual row. Top-k indices route upward to dispatch through a side lane; vertical position is layout, not execution order. Expert-output weighting is placed below both its inputs.

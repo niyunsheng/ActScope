@@ -7,7 +7,8 @@ export function drawConnections(canvas: HTMLCanvasElement, model: Model, selecte
     const ts = new Map(model.tensors.map(t => [t.id, t]));
     const branchY = new Map(model.tensors.map(t => {
       const consumers = model.operators.filter(op => op.inputs.includes(t.id));
-      const firstInputY = Math.min(...consumers.map(op => op.y - 26));
+      const downward = consumers.filter(op => op.y > t.y);
+      const firstInputY = downward.length ? Math.min(...downward.map(op => op.y - 26)) : t.y + 30;
       return [t.id, consumers.length > 1 ? Math.min(t.y + 30, firstInputY) : firstInputY];
     }));
     function arrow(points: [number, number][]) {

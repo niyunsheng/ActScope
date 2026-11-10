@@ -10,10 +10,13 @@ describe('graph grid', () => {
   });
 
   for (const model of models) {
-    it(`${model.id} keeps forward dependencies descending and nodes inside the canvas`, () => {
+    it(`${model.id} routes upward inputs through explicit lanes and keeps nodes inside the canvas`, () => {
       const tensors = new Map(model.tensors.map(t => [t.id, t]));
       for (const op of model.operators) {
-        for (const id of op.inputs) expect(op.y - tensors.get(id)!.y).toBeGreaterThanOrEqual(50);
+        for (const id of op.inputs) {
+          if (op.y <= tensors.get(id)!.y) expect(op.inputLanes?.[id]).toBeDefined();
+          else expect(op.y - tensors.get(id)!.y).toBeGreaterThanOrEqual(50);
+        }
         for (const id of op.outputs) expect(tensors.get(id)!.y - op.y).toBe(50);
       }
       for (const node of [...model.operators, ...model.tensors]) {
