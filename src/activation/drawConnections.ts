@@ -5,6 +5,11 @@ export function drawConnections(canvas: HTMLCanvasElement, model: Model, selecte
     el.width = (model.layout?.width ?? 520) * dpr; el.height = (model.layout?.height ?? 1490) * dpr;
     const ctx = el.getContext('2d')!; ctx.scale(dpr, dpr);
     const ts = new Map(model.tensors.map(t => [t.id, t]));
+    const branchY = new Map(model.tensors.map(t => {
+      const consumers = model.operators.filter(op => op.inputs.includes(t.id));
+      const firstInputY = Math.min(...consumers.map(op => op.y - 26));
+      return [t.id, consumers.length > 1 ? Math.min(t.y + 30, firstInputY) : firstInputY];
+    }));
     function arrow(points: [number, number][]) {
       ctx.beginPath(); ctx.setLineDash([]);
       ctx.strokeStyle = '#596678'; ctx.lineWidth = 1.3;
@@ -23,9 +28,10 @@ export function drawConnections(canvas: HTMLCanvasElement, model: Model, selecte
         if (route) {
           arrow(route);
         } else if (lane !== undefined) {
-          arrow([[t.x + (lane < t.x ? -9 : 9), t.y], [lane, t.y], [lane, op.y], [op.x + (lane < op.x ? -65 : 65), op.y]]);
+          const y = branchY.get(id)!;
+          arrow([[t.x, t.y + 10], [t.x, y], [lane, y], [lane, op.y], [op.x + (lane < op.x ? -65 : 65), op.y]]);
         } else {
-          const y = op.y - 26;
+          const y = branchY.get(id)!;
           arrow([[t.x, t.y + 10], [t.x, y], [op.x, y], [op.x, op.y - 16]]);
         }
       }

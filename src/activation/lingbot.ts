@@ -81,7 +81,7 @@ export const lingbot: Model = {
     operator('route','gather_norm_scale','route',['scores','indices'],['weights'],['scores','indices'],170,1700,undefined,undefined,{scores:[[170,1560],[170,1575],[90,1575],[90,1700],[108,1700]]}),
     // Logical compute dependencies: weight transport/reordering is implicit.
     // Dispatch shows token routing only; the weight value flows to its consumer.
-    operator('dispatch','dispatch','dispatch',['mod2','indices'],['dispatch','handle'],['handle'],520,1850,undefined,undefined,{mod2:[[520,1160],[520,1834]],indices:[[170,1660],[310,1660],[310,1840],[458,1840]]}),
+    operator('dispatch','dispatch','dispatch',['mod2','indices'],['dispatch','handle'],['handle'],520,1850,undefined,undefined,{mod2:[[520,1160],[520,1834]],indices:[[170,1660],[170,1675],[310,1675],[310,1840],[458,1840]]}),
     // Fused SwiGLU abstraction, matching H3: backward retains gate/up,
     // reconstructing SiLU(gate) rather than retaining its separate output.
     operator('w1','expert_gate_proj','linear',['dispatch'],['gate'],['dispatch'],440,1950,[E,I,H]),
@@ -90,7 +90,7 @@ export const lingbot: Model = {
     operator('w2','expert_down_proj','linear',['product'],['expertOut'],['product'],520,2250,[E,H,I]),
     // Fused multiply/cast: BF16 expert values and FP32 routing weights are
     // sufficient for backward; no full FP32 expert-output allocation is required.
-    operator('weight','apply_route_weight','multiply',['expertOut','weights'],['weighted'],['expertOut','weights'],520,2350,undefined,undefined,{weights:[[170,1760],[290,1760],[290,2350],[458,2350]]}),
+    operator('weight','apply_route_weight','multiply',['expertOut','weights'],['weighted'],['expertOut','weights'],520,2350,undefined,undefined,{weights:[[170,1760],[170,1780],[290,1780],[290,2350],[458,2350]]}),
     // Communication combine sums already-weighted BF16 outputs. Its backward
     // is cached dispatch with the forward handle, not another weighted multiply.
     operator('combine','deepep_combine','combine',['weighted','handle'],['routed'],['handle'],520,2550,undefined,undefined,{handle:[[170,1910],[170,2550],[458,2550]]}),
