@@ -3,19 +3,19 @@ import type { HTMLAttributes } from 'react';
 
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
 
-export function useGraphViewport(onMove: () => void, onBlankClick: () => void, width = 520, height = 1490) {
+export function useGraphViewport(onInteraction: () => void, width = 520, height = 1490) {
   const viewport = useRef<HTMLDivElement>(null);
   const [view, setView] = useState({ scale: 1, x: 0, y: 16 });
   const [dragging, setDragging] = useState(false);
   const drag = useRef<{ x: number; y: number; moved: boolean } | null>(null);
   const suppressClick = useRef(false);
   // Native wheel and resize listeners always invoke the current callbacks.
-  const callbacks = useRef({ onMove, onBlankClick });
-  callbacks.current = { onMove, onBlankClick };
+  const callback = useRef(onInteraction);
+  callback.current = onInteraction;
 
   const center = (scale: number) => {
     setView({ scale, x: (viewport.current!.clientWidth - width * scale) / 2, y: 16 });
-    callbacks.current.onMove();
+    callback.current();
   };
   const fit = () => {
     const el = viewport.current!;
@@ -27,7 +27,7 @@ export function useGraphViewport(onMove: () => void, onBlankClick: () => void, w
       const ratio = scale / v.scale;
       return { scale, x: x - (x - v.x) * ratio, y: y - (y - v.y) * ratio };
     });
-    callbacks.current.onMove();
+    callback.current();
   };
   useEffect(() => {
     const el = viewport.current!;
@@ -60,7 +60,7 @@ export function useGraphViewport(onMove: () => void, onBlankClick: () => void, w
         e.currentTarget.setPointerCapture(e.pointerId);
         suppressClick.current = true;
         setDragging(true);
-        callbacks.current.onMove();
+        callback.current();
       }
       drag.current = { x: e.clientX, y: e.clientY, moved: true };
       setView(v => ({ ...v, x: v.x + dx, y: v.y + dy }));
@@ -69,7 +69,7 @@ export function useGraphViewport(onMove: () => void, onBlankClick: () => void, w
       if (suppressClick.current) {
         e.preventDefault(); e.stopPropagation(); suppressClick.current = false;
       } else if (!(e.target as HTMLElement).closest('button')) {
-        callbacks.current.onBlankClick();
+        callback.current();
       }
     },
     onPointerUp: endDrag,
