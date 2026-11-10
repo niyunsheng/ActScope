@@ -26,12 +26,12 @@ describe('LingBot Video MoE checkpoint and logical activation ledger', () => {
     expect(row('scores').bytes).toBe(4096*128*4);
     expect(row('routerInput').bytes).toBe(4096*2048*4);
     expect(row('expertOut').bytes).toBe(4096*8*2048*2);
-    expect(row('recvWeights').dimensions).toEqual([4096*8]);
-    expect(row('recvWeights').bytes).toBe(4096*8*4);
+    expect(row('weights').dimensions).toEqual([4096,8]);
+    expect(row('weights').bytes).toBe(4096*8*4);
     expect(row('handle').bytes).toBe(0);
     expect(row('handle').metadata).toContain('size excluded');
-    expect(row('weights').keep).toBe(false);
-    // 16 hidden BF16 values, router FP32 input+scores, FP32 received weights,
+    expect(row('weights').keep).toBe(true);
+    // 16 hidden BF16 values, router FP32 input+scores, FP32 logical routing weights,
     // dispatched inputs, three routed and three shared intermediate values,
     // and BF16 expert output used by the weight-multiply backward.
     const perToken = 16*2048*2 + 2048*4 + 128*4 + 8*8 + 8*4 + 8*2048*2 + 3*8*768*2 + 3*768*2 + 8*2048*2;
@@ -68,13 +68,15 @@ describe('LingBot Video MoE checkpoint and logical activation ledger', () => {
     expect(op('postF').backward).toEqual(['moeOut']);
     expect(op('combine').backward).toEqual(['handle']);
     expect(op('combine').inputs).toEqual(['weighted','handle']);
-    expect(op('weight').backward).toEqual(['expertOut','recvWeights']);
+    expect(op('weight').backward).toEqual(['expertOut','weights']);
     expect(lingbot.tensors.some(t=>t.id==='expertFloat')).toBe(false);
     expect(op('add').backward).toEqual([]);
     expect(op('sigmoid').backward).toEqual(['scores']);
     expect(op('route').backward).toEqual(['scores','indices']);
     expect(op('topk').backward).toEqual([]);
     expect(op('dispatch').backward).toEqual(['handle']);
+    expect(op('dispatch').inputs).toEqual(['mod2','indices']);
+    expect(lingbot.tensors.some(t=>t.id==='recvWeights')).toBe(false);
   });
   it('checks normalized sigmoid route and weighted-sum gradients away from top-k ties', () => {
     // Fixed selected experts: output = sum_i 2.5*sigmoid(z_i)/sum(sigmoid(z))*expert_i.

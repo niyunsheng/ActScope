@@ -41,7 +41,6 @@ export const lingbot: Model = {
     tensor('scores','Sigmoid scores',170,1550,p=>[p.sequence,E],'FP32'),
     { ...tensor('indices','Top-k indices',170,1650,p=>[p.sequence,K],'INT64'), retain: true },
     tensor('weights','Top-k weights',170,1750,p=>[p.sequence,K],'FP32'),
-    tensor('recvWeights','Received weights',330,1900,p=>[p.sequence*K],'FP32'),
     { ...tensor('handle','EP handle',170,1900,()=>[]), metadata: 'Routing/layout metadata · size excluded', retain: true },
     tensor('dispatch','Dispatched tokens',520,1900,routedHidden),
     tensor('gate','Expert gate',440,2000,routedFF), tensor('up','Expert up',600,2000,routedFF),
@@ -80,18 +79,18 @@ export const lingbot: Model = {
     // indices plus scores; replay assumes deterministic selection, including ties.
     operator('topk','group_limited_topk','route',['scores'],['indices'],[],170,1600),
     operator('route','gather_norm_scale','route',['scores','indices'],['weights'],['scores','indices'],170,1700,undefined,undefined,{scores:[[170,1560],[90,1560],[90,1700],[108,1700]]}),
-    // DeepEP expanded dispatch transports weights without applying them to X.
-    // Backward combines token/weight gradients using the saved forward handle.
-    operator('dispatch','dispatch','dispatch',['mod2','indices','weights'],['dispatch','recvWeights','handle'],['handle'],520,1850,undefined,undefined,{mod2:[[520,1160],[520,1834]],indices:[[170,1660],[310,1660],[310,1840],[458,1840]],weights:[[170,1760],[290,1760],[290,1860],[458,1860]]}),
+    // Logical compute dependencies: weight transport/reordering is implicit.
+    // Dispatch shows token routing only; the weight value flows to its consumer.
+    operator('dispatch','dispatch','dispatch',['mod2','indices'],['dispatch','handle'],['handle'],520,1850,undefined,undefined,{mod2:[[520,1160],[520,1834]],indices:[[170,1660],[310,1660],[310,1840],[458,1840]]}),
     // Fused SwiGLU abstraction, matching H3: backward retains gate/up,
     // reconstructing SiLU(gate) rather than retaining its separate output.
     operator('w1','expert_gate_proj','linear',['dispatch'],['gate'],['dispatch'],440,1950,[E,I,H]),
     operator('w3','expert_up_proj','linear',['dispatch'],['up'],['dispatch'],600,1950,[E,I,H]),
     operator('sw','swiglu','swiglu',['gate','up'],['product'],['gate','up'],520,2100),
     operator('w2','expert_down_proj','linear',['product'],['expertOut'],['product'],520,2250,[E,H,I]),
-    // Fused multiply/cast: BF16 expert values and FP32 received weights are
+    // Fused multiply/cast: BF16 expert values and FP32 routing weights are
     // sufficient for backward; no full FP32 expert-output allocation is required.
-    operator('weight','apply_route_weight','multiply',['expertOut','recvWeights'],['weighted'],['expertOut','recvWeights'],520,2350,undefined,undefined,{recvWeights:[[330,1910],[330,2350],[458,2350]]}),
+    operator('weight','apply_route_weight','multiply',['expertOut','weights'],['weighted'],['expertOut','weights'],520,2350,undefined,undefined,{weights:[[170,1760],[290,1760],[290,2350],[458,2350]]}),
     // Communication combine sums already-weighted BF16 outputs. Its backward
     // is cached dispatch with the forward handle, not another weighted multiply.
     operator('combine','deepep_combine','combine',['weighted','handle'],['routed'],['handle'],520,2550,undefined,undefined,{handle:[[170,1910],[170,2550],[458,2550]]}),
