@@ -78,7 +78,8 @@ export const lingbot: Model = {
     // indices plus scores; replay assumes deterministic selection, including ties.
     operator('topk','group_limited_topk','route',['scores'],['indices'],[],170,1600),
     operator('route','gather_norm_scale','route',['scores','indices'],['weights'],['scores','indices'],170,1700,undefined,undefined,{scores:[[170,1560],[90,1560],[90,1700],[108,1700]]}),
-    // Indices stand in for the logical permutation; concrete permutation buffers are excluded.
+    // Pure token dispatch uses indices, not weight values. With no padding/drop,
+    // indices stand in for the logical permutation; concrete permutation buffers are excluded.
     operator('dispatch','dispatch','dispatch',['mod2','indices'],['dispatch'],['indices'],520,1850,undefined,undefined,{mod2:[[520,1160],[520,1834]],indices:[[170,1660],[310,1660],[310,1850],[458,1850]]}),
     // Fused SwiGLU abstraction, matching H3: backward retains gate/up,
     // reconstructing SiLU(gate) rather than retaining its separate output.
@@ -89,7 +90,7 @@ export const lingbot: Model = {
     operator('castExpert','cast_fp32','cast',['expertOut'],['expertFloat'],[],520,2350),
     // Weighted scatter uses FP32 expert values for d(route weights); normalized
     // BF16 weights for d(expert values). Indices identify the destination token slots.
-    operator('combine','combine','combine',['expertFloat','weights','indices'],['routed'],['expertFloat','weights','indices'],520,2550,undefined,undefined,{weights:[[170,1760],[170,1790],[330,1790],[330,2550],[458,2550]],indices:[[170,1660],[310,1660],[310,2530],[440,2530],[440,2550],[458,2550]]}),
+    operator('combine','weighted_combine','combine',['expertFloat','weights','indices'],['routed'],['expertFloat','weights','indices'],520,2550,undefined,undefined,{weights:[[170,1760],[170,1790],[60,1790],[60,2560],[458,2560]],indices:[[170,1660],[310,1660],[310,2540],[458,2540]]}),
     operator('sharedW1','shared_gate_proj','linear',['mod2'],['sharedGate'],['mod2'],830,1300,[I*c.n_shared_experts,H],undefined,{mod2:[[520,1160],[520,1180],[910,1180],[910,1260],[830,1260],[830,1284]]}),
     operator('sharedW3','shared_up_proj','linear',['mod2'],['sharedUp'],['mod2'],990,1300,[I*c.n_shared_experts,H],undefined,{mod2:[[520,1160],[520,1180],[910,1180],[910,1260],[990,1260],[990,1284]]}),
     operator('sharedSw','swiglu','swiglu',['sharedGate','sharedUp'],['sharedProduct'],['sharedGate','sharedUp'],910,1450),

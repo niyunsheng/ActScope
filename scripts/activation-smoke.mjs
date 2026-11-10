@@ -173,6 +173,9 @@ try {
   assert.deepEqual(await consumers(),['route','dispatch','combine']);
   await page.locator('[data-operator="dispatch"]').hover();
   assert.deepEqual(await dependencies(),['indices']);
+  await page.locator('[data-tensor="weights"]').hover();
+  assert.deepEqual(await consumers(),['combine']);
+  assert.equal(await page.locator('[data-operator="combine"]').innerText(),'weighted_combine');
   await page.getByLabel('Token count · T').fill('8192');
   assert.equal(await page.getByTestId('current-memory').innerText(),'32.00 MiB');
   await page.reload();
