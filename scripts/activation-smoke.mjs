@@ -172,6 +172,17 @@ try {
   assert.equal(await page.getByLabel('Select model').inputValue(),'lingbot-video-moe');
   await page.setViewportSize({width:390,height:844});
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
+  for (const width of [320,390,768,1024,1512]) {
+    await page.setViewportSize({width,height:844});
+    assert.equal(await page.locator('.ag-parameter-block').evaluate(el=>el.scrollWidth<=el.clientWidth),true);
+    const bounds=await page.locator('.ag-fixed-parameters').boundingBox();
+    for (const field of await page.locator('.ag-fixed-parameters > *').all()) {
+      const box=await field.boundingBox();
+      assert.ok(box.x>=bounds.x && box.x+box.width<=bounds.x+bounds.width+1);
+    }
+  }
+  assert.equal(await page.getByText('Selected groups',{exact:true}).count(),1);
+  await page.setViewportSize({width:390,height:844});
   await page.screenshot({path:'/tmp/actscope-lingbot-mobile.png',fullPage:true});
   await page.getByLabel('Select model').selectOption('minimax-h3-dit');
   await page.waitForURL('**/#/models/minimax-h3-dit');

@@ -25,7 +25,7 @@ export const lingbot: Model = {
     { label: 'Shared expert', x: 750, y: 1200, width: 340, height: 1260 },
   ],
   defaults: { sequence: 4096, hidden: H, intermediate: I, heads: c.num_attention_heads, kvHeads: c.num_attention_heads, headDim: H / c.num_attention_heads, bytes: 2 },
-  facts: [{label:'Routed experts',value:E}, {label:'Top-k',value:K}, {label:'Shared experts',value:c.n_shared_experts}],
+  facts: [{label:'Routed experts',value:E}, {label:'Top-k experts',value:K}, {label:'Groups',value:c.n_group}, {label:'Selected groups',value:c.topk_group}, {label:'Shared experts',value:c.n_shared_experts}],
   note: 'T = video + text tokens. Logical activation estimate; excludes routing indices, expert padding, norm/FA auxiliary state and conditioning.',
   boundary: ['input'],
   tensors: [
