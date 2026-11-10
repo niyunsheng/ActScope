@@ -688,3 +688,21 @@
   white-space: nowrap;
   pointer-events: none;
 }
+
+.ag-kernel-cost { background: #fff; border: 1px solid #dce4ed; border-radius: 12px; padding: 16px 20px; margin: 16px 0; }
+.ag-kernel-cost h2 { margin: 0 0 12px; font-size: 15px; }
+.ag-kernel-cost table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.ag-kernel-cost th, .ag-kernel-cost td { padding: 8px; border-bottom: 1px solid #e7edf3; text-align: right; }
+.ag-kernel-cost th:first-child { text-align: left; }
+.activation-page .ag-kernel-cost input { width: 90px; max-width: 100%; padding: 6px; border: 1px solid #adb9c7; border-radius: 5px; text-align: right; }
+.ag-kernel-cost p { font-size: 11px; color: var(--muted); margin: 10px 0 0; line-height: 1.5; }
+.ag-kernel-cost [role=alert] { color: #b42318; }
+.ag-strategy-time { display: grid; gap: 7px; margin: 8px 0 14px; font-size: 12px; }
+.ag-strategy-time > span { display: flex; justify-content: space-between; gap: 8px; }
+.ag-strategy-time small { color: var(--muted); font-size: 10px; }
+@media (max-width: 480px) {
+  .ag-kernel-cost { padding: 12px 8px; }
+  .ag-kernel-cost table { font-size: 10px; table-layout: fixed; }
+  .ag-kernel-cost th, .ag-kernel-cost td { padding: 6px 3px; overflow-wrap: anywhere; }
+  .activation-page .ag-kernel-cost input { width: 100%; min-width: 0; box-sizing: border-box; }
+}

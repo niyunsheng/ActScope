@@ -1,3 +1,5 @@
+import KernelCosts from './KernelCosts';
+import { computeFlops, computeTimes, referenceRates } from './compute';
 import { useMemo, useState } from 'react';
 import { models } from './model';
 import type { Model } from './model';
@@ -14,11 +16,13 @@ export default function ActivationPage({ model }: { model: Model }) {
   const [sequence, setSequence] = useState(model.defaults.sequence);
   const params = useMemo(() => ({ ...model.defaults, sequence }), [model, sequence]);
   const [level, setLevel] = useState(0);
+  const [rates, setRates] = useState(referenceRates);
   const data = useMemo(() => {
-    try { return { results: levels.map(item => analyze(model, params, item.policy)), error: null }; }
-    catch (e) { return { results: null, error: (e as Error).message }; }
+    try { return { results: levels.map(item => analyze(model, params, item.policy)), flops: computeFlops(model, params), error: null }; }
+    catch (e) { return { results: null, flops: undefined, error: (e as Error).message }; }
   }, [model, params]);
-  const { results, error } = data;
+  const { results, error, flops } = data;
+  const costs = levels.map(item => flops ? computeTimes(flops, rates, item.policy) : null);
   const result = results?.[level];
   return <main className="activation-page ag-single-layer">
     <header className="ag-header">
@@ -50,13 +54,22 @@ export default function ActivationPage({ model }: { model: Model }) {
       </section>
       {model.note && <p className="ag-model-note">{model.note}</p>}
       {error && <div className="ag-error" role="alert">{error}</div>}
+      <KernelCosts flops={flops} rates={rates} times={costs[0]?.ms} onChange={setRates} />
       <fieldset className="ag-strategies"><legend>Saved activations per layer · Select a strategy to update the graph</legend>{levels.map((item,index) => {
         const summary = results?.[index];
+        const cost = costs[index];
         return <label className={`ag-strategy ${level === index ? 'active' : ''}`} key={item.label}>
           <input type="radio" name="recompute-level" aria-label={item.label} value={index} checked={level === index} onChange={() => setLevel(index)} />
           <span className="ag-strategy-heading"><span className="ag-level-number">{index}</span><strong>{item.label}</strong><span className="ag-choice-mark" aria-hidden="true">{level === index ? '●' : '○'}</span></span>
           <span className="ag-strategy-description">{index === 0 ? 'No recomputation' : index === 1 ? model.memoryDescription ?? item.detail : item.detail}</span>
           <strong className="ag-strategy-bytes" data-testid={index === level ? 'current-memory' : undefined}>{summary ? formatBytes(summary.total) : '—'}</strong>
+          <span className="ag-strategy-time">
+            <span>Forward <b data-cost="forward">{cost ? `${cost.forward.toFixed(1)} ms` : '—'}</b></span>
+            <span>Backward <b data-cost="backward">{cost ? `${cost.backward.toFixed(1)} ms` : '—'}</b></span>
+            <small data-cost="recompute">{cost ? `Includes +${cost.recompute.toFixed(1)} ms recompute` : 'Timing unavailable'}</small>
+            <span>Total <b data-cost="total">{cost ? `${cost.total.toFixed(1)} ms` : '—'}</b></span>
+            <span>Relative time <b data-cost="relative">{cost ? `${cost.relative.toFixed(1)}%` : '—'}</b></span>
+          </span>
           <span className="ag-strategy-footer">{summary ? `${summary.savedCount} tensors saved` : 'Check parameters'}<span>{summary && results ? `Saved ${((1-summary.total/results[0].total)*100).toFixed(1)}%` : ''}</span></span>
         </label>;
       })}</fieldset>

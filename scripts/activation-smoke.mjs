@@ -11,7 +11,24 @@ try {
   assert.equal(await page.locator('.ag-header').getByText('Model',{exact:true}).count(),0);
   assert.equal(await page.getByText('/ activation lab',{exact:true}).count(),0);
   assert.deepEqual(await page.locator('.ag-strategy-bytes').allTextContents(),['1008.00 MiB','574.00 MiB','98.00 MiB','42.00 MiB']);
-  assert.equal(await page.locator('input[type=number]').count(),1);
+  assert.equal(await page.locator('input[type=number]').count(),5);
+  const tokenCount=page.getByLabel('Token count · T',{exact:true});
+  await tokenCount.fill('33630');
+  assert.equal(await page.locator('[data-kernel="forwardGemm"] td').first().innerText(),'25.92');
+  assert.equal(await page.locator('[data-kernel="forwardFa"] td').first().innerText(),'32.43');
+  assert.deepEqual(await page.locator('[data-cost="relative"]').allTextContents(),['100.0%','100.0%','113.1%','129.8%']);
+  const rate=page.getByLabel('Forward GEMM kernel TFLOP/s',{exact:true});
+  const costBefore=Number(await page.locator('[data-kernel="forwardGemm"] td').last().innerText());
+  await rate.fill('440');
+  const costAfter=Number(await page.locator('[data-kernel="forwardGemm"] td').last().innerText());
+  assert.ok(Math.abs(costAfter-costBefore/2)<0.1);
+  await rate.fill('0');
+  assert.match(await page.getByRole('alert').innerText(),/positive throughput/);
+  assert.equal(await page.locator('[data-cost="total"]').first().innerText(),'—');
+  assert.equal(await page.locator('[data-operator="fa"]').count(),1);
+  await rate.fill('220');
+  await tokenCount.fill('4096');
+
   assert.equal(await page.getByLabel('Activation dtype',{exact:true}).count(),0);
   assert.doesNotMatch(await page.locator('body').innerText(), /\p{Script=Han}/u);
   assert.equal(await page.locator('.ag-graph-heading .ag-legend').count(),1);
@@ -57,7 +74,7 @@ try {
   assert.equal(await page.getByRole('alert').count(),1);
   await page.getByLabel('Token count · T',{exact:true}).fill('4096');
   await page.getByRole('radio',{name:'Recompute memory-bound + GEMM',exact:true}).check();
-  assert.equal(await page.locator('table, .ag-diagram svg, .ag-ledger, .ag-op-inspector').count(),0);
+  assert.equal(await page.locator('.ag-diagram svg, .ag-ledger, .ag-op-inspector').count(),0);
   const colors=await page.locator('.ag-operator').evaluateAll(ns=>[...new Set(ns.map(n=>getComputedStyle(n).backgroundColor))]);
   assert.equal(colors.length,2);
   assert.equal(await page.locator('.ag-operator.compute-bound').count(),8);
