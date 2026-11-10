@@ -17,6 +17,7 @@ export function drawConnections(canvas: HTMLCanvasElement, model: Model, selecte
     for (const op of model.operators) {
       for (const id of op.inputs) {
         const t = ts.get(id)!;
+        if (t.metadata) continue;
         const lane = op.inputLanes?.[id] ?? (op.id === 'r1' && id === 'input' ? 492 : op.id === 'r2' && id === 'residual' ? 470 : undefined);
         const route = op.inputRoutes?.[id];
         if (route) {
@@ -30,10 +31,12 @@ export function drawConnections(canvas: HTMLCanvasElement, model: Model, selecte
       }
       for (const id of op.outputs) {
         const t = ts.get(id)!;
+        if (t.metadata) continue;
         arrow([[op.x, op.y + 16], [op.x, op.y + 25], [t.x, op.y + 25], [t.x, t.y - 10]]);
       }
       for (const id of op.backward) {
         const t = ts.get(id)!;
+        if (t.metadata) continue;
         // A smooth dependency arc, distinct from the orthogonal forward path.
         const start = { x: op.x - 62, y: op.y };
         const end = { x: t.x - 10, y: t.y };

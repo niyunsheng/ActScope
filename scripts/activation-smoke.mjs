@@ -145,7 +145,7 @@ try {
   await page.getByLabel('Select model').selectOption('lingbot-video-moe');
   await page.waitForURL('**/#/models/lingbot-video-moe');
   assert.deepEqual(await page.locator('.ag-strategy-bytes').allTextContents(),['708.38 MiB','350.25 MiB','32.25 MiB','16.25 MiB']);
-  for (const [index,count] of [29,15,4,3].entries()) {
+  for (const [index,count] of [28,14,3,2].entries()) {
     await page.getByRole('radio',{name:labels[index],exact:true}).check();
     assert.equal(await page.locator('.ag-tensor.saved').count(),count);
   }
@@ -165,23 +165,20 @@ try {
     assert.equal(await page.locator(`[data-operator="${id}"]`).innerText(),'swiglu');
   }
   await page.locator('[data-operator="combine"]').hover();
-  assert.deepEqual(await dependencies(),['handle']);
+  assert.deepEqual(await dependencies(),[]);
   await page.locator('[data-tensor="indices"]').hover();
   assert.equal(await page.getByTestId('tensor-shape').innerText(),'[4096, 8]');
   assert.equal(await page.getByTestId('tensor-size').innerText(),'0.25 MiB');
   assert.match(await information.innerText(),/INT64/);
   assert.deepEqual(await consumers(),['route']);
   await page.locator('[data-operator="dispatch"]').hover();
-  assert.deepEqual(await dependencies(),['handle']);
+  assert.deepEqual(await dependencies(),[]);
   await page.locator('[data-tensor="weights"]').hover();
   assert.deepEqual(await consumers(),['weight']);
   assert.equal(await page.locator('[data-operator="combine"]').innerText(),'deepep_combine');
   await page.locator('[data-operator="weight"]').hover();
   assert.deepEqual(await dependencies(),['weights','expertOut']);
-  await page.locator('[data-tensor="handle"]').hover();
-  assert.deepEqual(await consumers(),['dispatch','combine']);
-  assert.match(await information.innerText(),/size excluded/);
-  assert.equal(await page.getByTestId('tensor-size').count(),0);
+  assert.equal(await page.locator('[data-tensor="handle"]').count(),0);
   await page.locator('[data-tensor="weights"]').hover();
   assert.equal(await page.getByTestId('tensor-shape').innerText(),'[4096, 8]');
   assert.equal(await page.getByTestId('tensor-size').innerText(),'0.13 MiB');

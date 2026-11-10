@@ -26,7 +26,7 @@ Estimates **main activations retained for backward** for one unsharded logical l
 
 H3 follows a user-provided configuration and diagram; pre-norm and Q/K RMSNorm types are verified against the [Diffusers implementation](https://github.com/huggingface/diffusers/blob/33b3d3704242a37be8cc6be010df97aeef9dc643/src/diffusers/models/transformers/transformer_minimax_h3.py). Assumptions include standard MHA, fixed RoPE, fused SwiGLU, zero attention dropout, and trainable modulation and residual gates. See [model.ts](src/activation/model.ts) for operator dependencies and [h3-config.ts](src/activation/h3-config.ts) for dimensions. The graph displays H3’s packed FC1 as separate `gate_proj` and `up_proj` logical projections sharing one input; this does not change activation totals. Activation totals have not been validated against a runtime saved-tensor trace or GPU measurements.
 
-LingBot uses the [official implementation and checkpoint config](docs/lingbot-video.md): 128 routed experts, top-8 routing, and one shared expert. T includes video and text tokens. The graph separates DeepEP dispatch, expert-output weighting and combine, and shows the retained communication handle (storage excluded). Its source references, mixed-precision accounting and training assumptions are documented there.
+LingBot uses the [official implementation and checkpoint config](docs/lingbot-video.md): 128 routed experts, top-8 routing, and one shared expert. T includes video and text tokens. The graph separates DeepEP dispatch, expert-output weighting and combine, while hiding communication metadata such as the retained EP handle (storage excluded). Its source references, mixed-precision accounting and training assumptions are documented there.
 
 ## Development and deployment
 

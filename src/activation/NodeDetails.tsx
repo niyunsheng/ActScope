@@ -14,13 +14,13 @@ export default function NodeDetails({ operator, tensor, rows, operators }: {
     {operator ? <>
       <strong>{operator.label}</strong>
       {operator.category === 'gemm' && <> · W {operator.weightShape?.length === 3 ? '[experts, out, in]' : '[out, in]'} <code data-testid="weight-shape">{shape(operator.weightShape ?? [outputs.reduce((sum, row) => sum + features(row), 0), features(inputs[0])])}</code></>}
-      <span> · Bwd needs: {operator.backward.map(id => {
+      <span> · Bwd needs: {operator.backward.filter(id => !rows.find(row => row.id === id)!.metadata).map(id => {
         const row = rows.find(row => row.id === id)!;
         return row.label;
-      }).join(', ') || 'None'}</span>
+      }).join(', ') || 'None (activations)'}</span>
     </> : tensor ? <>
-      <strong>{tensor.label}</strong>{tensor.metadata ? <> · {tensor.metadata}</> : <> · <code data-testid="tensor-shape">{shape(tensor.dimensions)}</code>
-      {' · '}{tensor.dtype && tensor.dtype !== 'BF16' && `${tensor.dtype} · `}<strong data-testid="tensor-size">{(tensor.bytes / 1024 ** 2).toFixed(2)} MiB</strong></>}
+      <strong>{tensor.label}</strong> · <code data-testid="tensor-shape">{shape(tensor.dimensions)}</code>
+      {' · '}{tensor.dtype && tensor.dtype !== 'BF16' && `${tensor.dtype} · `}<strong data-testid="tensor-size">{(tensor.bytes / 1024 ** 2).toFixed(2)} MiB</strong>
       {' · '}{tensor.keep ? 'Saved' : 'Not retained'}
       <span> · Bwd used by: {operators.filter(op => op.backward.includes(tensor.id)).map(op => op.label).join(', ') || 'None'}</span>
     </> : 'Scroll to zoom · Drag graph or nodes to pan'}

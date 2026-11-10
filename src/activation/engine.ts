@@ -50,7 +50,7 @@ export function analyze(model: Model, p: Parameters, policy: Policy) {
     const retained = keep ? bytes : 0;
     return { ...t, dimensions: shape, bytes, keep, retained, recompute: recomputed.has(t.id), reasons: [...(saved.get(t.id) ?? [])] };
   });
-  return { rows, total: rows.reduce((sum, r) => sum + r.retained, 0), savedCount: rows.filter(r => r.keep).length };
+  return { rows, total: rows.reduce((sum, r) => sum + r.retained, 0), savedCount: rows.filter(r => r.keep && !r.metadata).length };
 }
 export type Analysis = ReturnType<typeof analyze>;
 export const formatBytes = (n: number) => n >= 1024 ** 3 ? `${(n / 1024 ** 3).toFixed(2)} GiB` : `${(n / 1024 ** 2).toFixed(2)} MiB`;
