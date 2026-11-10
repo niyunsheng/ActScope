@@ -720,3 +720,6 @@
 .ag-work-details { margin-top: 12px; font-size: 12px; }
 .ag-work-details summary { cursor: pointer; color: #526174; }
 .ag-work-details table { margin-top: 8px; }
+.ag-measurement-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.ag-measurement-actions button { padding: 7px 10px; border: 1px solid #adb9c7; border-radius: 5px; background: #f3f7fb; color: inherit; cursor: pointer; }
+.ag-measurement-actions button:disabled { opacity: .55; cursor: default; }

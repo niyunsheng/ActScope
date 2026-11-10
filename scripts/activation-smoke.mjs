@@ -1,6 +1,11 @@
 import { chromium } from '@playwright/test';
 import assert from 'node:assert/strict';
-const browser=await chromium.launch({channel:'chrome',headless:true});
+import { mkdtemp } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+const artifacts=await mkdtemp(join(tmpdir(),'actscope-browser-'));
+console.log(`Browser artifacts: ${artifacts}`);
+const browser=await chromium.launch({...(process.env.CHROME_PATH ? {executablePath:process.env.CHROME_PATH} : {channel:'chrome'}),headless:true});
 try {
   const page=await browser.newPage({viewport:{width:1512,height:1050}});
   const errors=[];page.on('pageerror',e=>errors.push(e.message));
@@ -44,6 +49,26 @@ try {
   assert.equal(await page.locator('[data-rate="memory"] [data-peak-ratio]').innerText(),'33.6%');
   await page.getByLabel('GPU',{exact:true}).selectOption('rtx-pro-5000-blackwell');
   assert.equal(await bandwidth.inputValue(),'672');
+  const measuredDetails=page.getByText('RTX PRO 5000 lab measurements · H3 / 33,630 tokens',{exact:true});
+  await measuredDetails.click();
+  const applyMeasured=page.getByRole('button',{name:'Use measured H3 rates',exact:true});
+  assert.ok(await applyMeasured.isEnabled());
+  assert.equal(await page.getByRole('table',{name:'Measured kernel throughput'}).locator('tbody tr').count(),3);
+  await applyMeasured.click();
+  assert.notEqual(await rate.inputValue(),'220');
+  assert.notEqual(await bandwidth.inputValue(),'672');
+  assert.match(await page.getByRole('status',{name:'Calibration status'}).innerText(),/Measured probe rates selected/);
+  assert.notEqual(await page.locator('[data-cost="total"]').first().innerText(),baseline);
+  await page.screenshot({path:join(artifacts,'actscope-measurements-desktop.png'),fullPage:true});
+  await tokenCount.fill('4096');
+  assert.ok(await applyMeasured.isDisabled());
+  assert.match(await page.getByRole('status',{name:'Calibration status'}).innerText(),/extrapolation/);
+  await tokenCount.fill('33630');
+  await page.getByRole('button',{name:'Reset reference rates',exact:true}).click();
+  assert.equal(await rate.inputValue(),'220');
+  assert.equal(await bandwidth.inputValue(),'672');
+  assert.equal(await page.locator('[data-cost="total"]').first().innerText(),baseline);
+  await measuredDetails.click();
   await page.getByText('Work and time per layer',{exact:true}).click();
   await tokenCount.fill('4096');
   assert.deepEqual(await page.locator('.ag-strategy-bytes').allTextContents(),['1008.00 MiB','574.00 MiB','98.00 MiB','42.00 MiB']);
@@ -122,7 +147,7 @@ try {
   assert.deepEqual(await dependencies(),['v','qr','kr','attention']);
   assert.equal(await page.getByRole('tooltip').count(),0);
   assert.equal(await page.locator('.ag-tensor.dependency.released').count(),3);
-  await page.screenshot({path:'/tmp/actscope-hover-desktop.png',fullPage:true});
+  await page.screenshot({path:join(artifacts,'actscope-hover-desktop.png'),fullPage:true});
   await page.mouse.move(10,10);
   assert.equal(await page.getByRole('tooltip').count(),0);
   assert.deepEqual(await dependencies(),[]);
@@ -151,9 +176,13 @@ try {
     const node=await page.locator(selector).boundingBox();
     const old=await page.locator('.ag-diagram').evaluate(n=>new DOMMatrix(getComputedStyle(n).transform).e);
     await page.mouse.move(node.x+node.width/2,node.y+node.height/2);
-    await page.mouse.down();await page.mouse.move(node.x+node.width/2+30,node.y+node.height/2+15,{steps:4});await page.mouse.up();
+    await page.mouse.down();await page.mouse.move(node.x+node.width/2+30,node.y+node.height/2+15,{steps:4});
     const next=await page.locator('.ag-diagram').evaluate(n=>new DOMMatrix(getComputedStyle(n).transform).e);
     assert.ok(Math.abs(next-old-30)<1);
+    assert.deepEqual(await consumers(),[]);
+    // Check while dragging; pointer-capture release can legitimately re-enter
+    // the node under the cursor and restore its normal hover state.
+    await page.mouse.up();await page.mouse.move(1,1);
     assert.deepEqual(await consumers(),[]);
   }
   for (const [id, expected] of [['attention',['fa','o']], ['qn',[]], ['gate',['sw']]]) {
@@ -172,7 +201,7 @@ try {
   await page.setViewportSize({width:390,height:844});
   await page.locator('[data-operator="qp"]').hover();
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
-  await page.screenshot({path:'/tmp/actscope-hover-mobile.png',fullPage:true});
+  await page.screenshot({path:join(artifacts,'actscope-hover-mobile.png'),fullPage:true});
   await page.mouse.move(1,1);
   await page.reload();
   assert.equal(await page.getByRole('tooltip').count(),0);
@@ -180,6 +209,9 @@ try {
   await page.setViewportSize({width:1512,height:1050});
   await page.getByLabel('Select model').selectOption('lingbot-video-moe');
   await page.waitForURL('**/#/models/lingbot-video-moe');
+  await measuredDetails.click();
+  assert.ok(await applyMeasured.isDisabled());
+  await measuredDetails.click();
   assert.deepEqual(await page.locator('.ag-strategy-bytes').allTextContents(),['708.38 MiB','350.25 MiB','32.25 MiB','16.25 MiB']);
   for (const [index,count] of [28,14,3,2].entries()) {
     await page.getByRole('radio',{name:labels[index],exact:true}).check();
@@ -236,10 +268,20 @@ try {
   }
   assert.equal(await page.getByText('Selected groups',{exact:true}).count(),1);
   await page.setViewportSize({width:390,height:844});
-  await page.screenshot({path:'/tmp/actscope-lingbot-mobile.png',fullPage:true});
+  await page.screenshot({path:join(artifacts,'actscope-lingbot-mobile.png'),fullPage:true});
   await page.getByLabel('Select model').selectOption('minimax-h3-dit');
   await page.waitForURL('**/#/models/minimax-h3-dit');
   assert.deepEqual(await page.locator('.ag-strategy-bytes').allTextContents(),['8.08 GiB','4.60 GiB','804.62 MiB','344.84 MiB']);
+  await measuredDetails.click();
+  await applyMeasured.click();
+  for (const width of [320,390,768]) {
+    await page.setViewportSize({width,height:844});
+    assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
+  }
+  await page.setViewportSize({width:390,height:844});
+  await page.evaluate(()=>scrollTo(0,0));
+  await page.waitForTimeout(100);
+  await page.screenshot({path:join(artifacts,'actscope-measurements-mobile.png'),fullPage:true});
   assert.deepEqual(errors,[]);
   console.log('Passed: 4 cumulative levels (up/down), validation, 2 operator colors, hover/leave, no pinned click, no operator annotations, dependencies, keyboard, no ledger, mobile, cursor-centered wheel zoom, pan, reset.');
 } finally {await browser.close();}

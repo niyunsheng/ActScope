@@ -1,10 +1,12 @@
 import { kernels, type KernelRates, type KernelValues, type computeTimes } from './compute';
 import type { memoryTraffic } from './memoryTraffic';
 import { positive, type Hardware } from './hardware';
+import KernelMeasurements from './KernelMeasurements';
 
-export default function KernelCosts({ flops, traffic, rates, times, hardware, onChange }: {
+export default function KernelCosts({ flops, traffic, rates, times, hardware, modelId, sequence, onChange }: {
   flops?: KernelValues; traffic?: ReturnType<typeof memoryTraffic>; rates: KernelRates;
   times?: NonNullable<ReturnType<typeof computeTimes>>['ms']; hardware: Hardware;
+  modelId: string; sequence: number;
   onChange: (rates: KernelRates) => void;
 }) {
   const invalid = Object.values(rates).some(rate => !positive(rate));
@@ -22,7 +24,8 @@ export default function KernelCosts({ flops, traffic, rates, times, hardware, on
       })}</tbody>
     </table>
     {invalid && <p role="alert">Enter a positive throughput for every kernel.</p>}
-    <p>GEMM uses 220 TFLOP/s for both forward and backward; FA uses your reference rates. Memory defaults to 672 GB/s (50% of RTX PRO 5000 peak): an uncalibrated assumption, not a measurement.</p>
+    <p>Reference inputs: GEMM 220 TFLOP/s; FA forward/backward 215/165 TFLOP/s; memory 672 GB/s (50% of the hardware peak, an uncalibrated assumption). Measured H3 probe rates are available below.</p>
+    <KernelMeasurements modelId={modelId} sequence={sequence} rates={rates} onChange={onChange} />
     <details className="ag-work-details"><summary>Work and time per layer</summary>
       <table><thead><tr><th>Computation</th><th>Work</th><th>Unit</th><th>Time (ms)</th></tr></thead><tbody>
         {([

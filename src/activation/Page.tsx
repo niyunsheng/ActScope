@@ -65,7 +65,7 @@ export default function ActivationPage({ model }: { model: Model }) {
         </section>
         <div className="ag-performance-panels">
           <HardwareTable hardware={hardware} onChange={setHardware} />
-          <KernelCosts flops={flops} traffic={traffic} rates={rates} times={costs[0]?.ms} hardware={hardware} onChange={setRates} />
+          <KernelCosts flops={flops} traffic={traffic} rates={rates} times={costs[0]?.ms} hardware={hardware} modelId={model.id} sequence={sequence} onChange={setRates} />
         </div>
       </div>
       {model.note && <p className="ag-model-note">{model.note}</p>}
