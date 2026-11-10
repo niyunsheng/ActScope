@@ -30,7 +30,7 @@ LingBot uses the [official implementation and checkpoint config](docs/lingbot-vi
 
 ## Development and deployment
 
-Models are defined in `src/activation/model.ts`; the analysis engine, rendering, and viewport controls are shared. To add a model, define a `Model` and register it in `models`.
+Models are defined in `src/activation/model.ts`; the analysis engine, rendering, and viewport controls are shared. To add a model, define a `Model` and register it in `models`. Layout uses named columns and section-relative rows via `createGrid` in `layout.ts` (50 px per row). Connections follow node anchors; special paths specify a side lane or branch column instead of fixed point lists. Recompute policies do not move nodes.
 
 ```sh
 npm test              # Analysis and numerical gradient tests

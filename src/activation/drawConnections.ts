@@ -23,10 +23,12 @@ export function drawConnections(canvas: HTMLCanvasElement, model: Model, selecte
       for (const id of op.inputs) {
         const t = ts.get(id)!;
         if (t.metadata) continue;
-        const lane = op.inputLanes?.[id] ?? (op.id === 'r1' && id === 'input' ? 492 : op.id === 'r2' && id === 'residual' ? 470 : undefined);
-        const route = op.inputRoutes?.[id];
-        if (route) {
-          arrow(route);
+        const lane = op.inputLanes?.[id];
+        const branch = op.inputBranches?.[id];
+        if (branch !== undefined) {
+          const y = branchY.get(id)!;
+          const mergeY = op.y - 40;
+          arrow([[t.x, t.y + 10], [t.x, y], [branch, y], [branch, mergeY], [op.x, mergeY], [op.x, op.y - 16]]);
         } else if (lane !== undefined) {
           const y = branchY.get(id)!;
           arrow([[t.x, t.y + 10], [t.x, y], [lane, y], [lane, op.y], [op.x + (lane < op.x ? -65 : 65), op.y]]);
