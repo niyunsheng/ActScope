@@ -567,25 +567,24 @@
 
 .ag-parameter-block {
   padding: 16px 20px;
-  overflow-x: auto;
 }
 
 .ag-parameter-block .ag-fixed-parameters {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(125px, 1fr));
   align-items: center;
-  gap: 20px;
+  gap: 16px;
   margin: 0;
-  min-width: max-content;
+  min-width: 0;
 }
 
 .ag-fixed-parameters>div {
-  flex: 1;
-  min-width: 88px;
-  white-space: nowrap;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .ag-fixed-parameters .ag-sequence-field {
-  flex: 0 0 150px;
+  min-width: 0;
 }
 
 .ag-fixed-parameters strong {
@@ -655,4 +654,37 @@
 
 @media (max-width: 700px) {
   .ag-zoom-toolbar > .ag-node-summary { flex-basis: 100%; }
+}
+
+.ag-model-note { color: var(--muted); font-size: 11px; line-height: 1.5; }
+
+.ag-graph-region {
+  position: absolute;
+  border: 1px solid #dce4ed;
+  border-radius: 12px;
+  background: #f3f6fa80;
+  pointer-events: none;
+}
+.ag-graph-region > span {
+  display: block;
+  text-align: left;
+  margin: 18px 16px 0;
+  color: #728094;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.ag-forward-only {
+  position: absolute;
+  top: -13px;
+  right: -5px;
+  padding: 1px 5px;
+  border: 1px solid #adb9c7;
+  border-radius: 8px;
+  background: #f8fafc;
+  color: #526174;
+  font-size: 9px;
+  line-height: 14px;
+  white-space: nowrap;
+  pointer-events: none;
 }

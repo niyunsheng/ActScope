@@ -17,6 +17,14 @@ describe('H3 DiT activation checkpoint dependencies', () => {
     expect(ids({gemm:false,fa:false,memory:true})).toEqual(['input','q','k','v','attention','out','gate','up','fc2']);
     expect(ids({gemm:true,fa:false,memory:true})).toEqual(['input','attention']);
   });
+  it('splits packed H3 gate/up logically without duplicating input storage', () => {
+    const result = analyze(h3,p,none);
+    const input = result.rows.find(row=>row.id==='mod2')!;
+    expect(input.reasons).toEqual(['gate_proj.backward','up_proj.backward']);
+    expect(input.retained).toBe(p.sequence*p.hidden*p.bytes);
+    const policies = [none, {gemm:false,fa:false,memory:true}, {gemm:true,fa:false,memory:true}, {gemm:true,fa:true,memory:true}];
+    expect(policies.map(policy=>analyze(h3,p,policy).total/1024**2)).toEqual([1008,574,98,42]);
+  });
   it('all-on retains only the layer boundary', () => {
     expect(ids({gemm:true,fa:true,memory:true})).toEqual(['input']);
   });

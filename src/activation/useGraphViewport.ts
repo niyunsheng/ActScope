@@ -1,27 +1,25 @@
 import { useEffect, useRef, useState } from 'react';
 import type { HTMLAttributes } from 'react';
 
-const WIDTH = 520;
-const HEIGHT = 1490;
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
 
-export function useGraphViewport(onMove: () => void, onBlankClick: () => void) {
+export function useGraphViewport(onInteraction: () => void, width = 520, height = 1490) {
   const viewport = useRef<HTMLDivElement>(null);
   const [view, setView] = useState({ scale: 1, x: 0, y: 16 });
   const [dragging, setDragging] = useState(false);
   const drag = useRef<{ x: number; y: number; moved: boolean } | null>(null);
   const suppressClick = useRef(false);
   // Native wheel and resize listeners always invoke the current callbacks.
-  const callbacks = useRef({ onMove, onBlankClick });
-  callbacks.current = { onMove, onBlankClick };
+  const callback = useRef(onInteraction);
+  callback.current = onInteraction;
 
   const center = (scale: number) => {
-    setView({ scale, x: (viewport.current!.clientWidth - WIDTH * scale) / 2, y: 16 });
-    callbacks.current.onMove();
+    setView({ scale, x: (viewport.current!.clientWidth - width * scale) / 2, y: 16 });
+    callback.current();
   };
   const fit = () => {
     const el = viewport.current!;
-    center(clamp(Math.min((el.clientWidth - 32) / WIDTH, (el.clientHeight - 32) / HEIGHT), .2, 1));
+    center(clamp(Math.min((el.clientWidth - 32) / width, (el.clientHeight - 32) / height), .2, 1));
   };
   const zoom = (factor: number, x: number, y: number) => {
     setView(v => {
@@ -29,7 +27,7 @@ export function useGraphViewport(onMove: () => void, onBlankClick: () => void) {
       const ratio = scale / v.scale;
       return { scale, x: x - (x - v.x) * ratio, y: y - (y - v.y) * ratio };
     });
-    callbacks.current.onMove();
+    callback.current();
   };
   useEffect(() => {
     const el = viewport.current!;
@@ -44,7 +42,7 @@ export function useGraphViewport(onMove: () => void, onBlankClick: () => void) {
     const observer = new ResizeObserver(fit);
     observer.observe(el);
     return () => { el.removeEventListener('wheel', wheel); observer.disconnect(); };
-  }, []);
+  }, [width, height]);
 
   const endDrag = () => { drag.current = null; setDragging(false); };
   const panHandlers: HTMLAttributes<HTMLDivElement> = {
@@ -62,7 +60,7 @@ export function useGraphViewport(onMove: () => void, onBlankClick: () => void) {
         e.currentTarget.setPointerCapture(e.pointerId);
         suppressClick.current = true;
         setDragging(true);
-        callbacks.current.onMove();
+        callback.current();
       }
       drag.current = { x: e.clientX, y: e.clientY, moved: true };
       setView(v => ({ ...v, x: v.x + dx, y: v.y + dy }));
@@ -71,7 +69,7 @@ export function useGraphViewport(onMove: () => void, onBlankClick: () => void) {
       if (suppressClick.current) {
         e.preventDefault(); e.stopPropagation(); suppressClick.current = false;
       } else if (!(e.target as HTMLElement).closest('button')) {
-        callbacks.current.onBlankClick();
+        callback.current();
       }
     },
     onPointerUp: endDrag,

@@ -15,7 +15,7 @@ try {
   assert.equal(await page.getByLabel('Activation dtype',{exact:true}).count(),0);
   assert.doesNotMatch(await page.locator('body').innerText(), /\p{Script=Han}/u);
   assert.equal(await page.locator('.ag-graph-heading .ag-legend').count(),1);
-  for (const [id, expected] of Object.entries({qp:'[7168, 5376]',kp:'[7168, 5376]',vp:'[7168, 5376]',o:'[5376, 7168]',f1:'[28672, 5376]',f2:'[5376, 14336]'})) {
+  for (const [id, expected] of Object.entries({qp:'[7168, 5376]',kp:'[7168, 5376]',vp:'[7168, 5376]',o:'[5376, 7168]',gate_proj:'[14336, 5376]',up_proj:'[14336, 5376]',f2:'[5376, 14336]'})) {
     await page.locator(`[data-operator="${id}"]`).hover();
     assert.equal(await page.getByTestId('weight-shape').innerText(),expected);
   }
@@ -60,7 +60,7 @@ try {
   assert.equal(await page.locator('table, .ag-diagram svg, .ag-ledger, .ag-op-inspector').count(),0);
   const colors=await page.locator('.ag-operator').evaluateAll(ns=>[...new Set(ns.map(n=>getComputedStyle(n).backgroundColor))]);
   assert.equal(colors.length,2);
-  assert.equal(await page.locator('.ag-operator.compute-bound').count(),7);
+  assert.equal(await page.locator('.ag-operator.compute-bound').count(),8);
   assert.equal(await page.locator('.ag-operator.memory-bound').count(),11);
   const viewport=page.getByLabel('Zoomable graph',{exact:true});
   await viewport.scrollIntoViewIfNeeded();
@@ -140,6 +140,70 @@ try {
   await page.mouse.move(1,1);
   await page.reload();
   assert.equal(await page.getByRole('tooltip').count(),0);
+  // Model switching uses the same renderer and engine; mixed precision is per tensor.
+  await page.setViewportSize({width:1512,height:1050});
+  await page.getByLabel('Select model').selectOption('lingbot-video-moe');
+  await page.waitForURL('**/#/models/lingbot-video-moe');
+  assert.deepEqual(await page.locator('.ag-strategy-bytes').allTextContents(),['708.38 MiB','350.25 MiB','32.25 MiB','16.25 MiB']);
+  for (const [index,count] of [28,14,3,2].entries()) {
+    await page.getByRole('radio',{name:labels[index],exact:true}).check();
+    assert.equal(await page.locator('.ag-tensor.saved').count(),count);
+  }
+  await page.locator('[data-operator="w1"]').hover();
+  assert.equal(await page.getByTestId('weight-shape').innerText(),'[128, 768, 2048]');
+  await page.locator('[data-operator="router"]').hover();
+  assert.equal(await page.getByTestId('weight-shape').innerText(),'[128, 2048]');
+  await page.locator('[data-tensor="routerInput"]').hover();
+  assert.match(await information.innerText(),/FP32/);
+  assert.equal(await page.getByTestId('tensor-size').innerText(),'32.00 MiB');
+  await page.locator('[data-tensor="dispatch"]').hover();
+  assert.equal(await page.getByTestId('tensor-shape').innerText(),'[32768, 2048]');
+  assert.equal(await page.getByTestId('tensor-size').innerText(),'128.00 MiB');
+  for (const [id, expected] of [['sw',['gate','up']],['sharedSw',['sharedGate','sharedUp']]]) {
+    await page.locator(`[data-operator="${id}"]`).hover();
+    assert.deepEqual(await dependencies(),expected);
+    assert.equal(await page.locator(`[data-operator="${id}"]`).innerText(),'swiglu');
+  }
+  await page.locator('[data-operator="combine"]').hover();
+  assert.deepEqual(await dependencies(),[]);
+  await page.locator('[data-tensor="indices"]').hover();
+  assert.equal(await page.getByTestId('tensor-shape').innerText(),'[4096, 8]');
+  assert.equal(await page.getByTestId('tensor-size').innerText(),'0.25 MiB');
+  assert.match(await information.innerText(),/INT64/);
+  assert.deepEqual(await consumers(),['route']);
+  await page.locator('[data-operator="dispatch"]').hover();
+  assert.deepEqual(await dependencies(),[]);
+  await page.locator('[data-tensor="weights"]').hover();
+  assert.deepEqual(await consumers(),['weight']);
+  assert.equal(await page.locator('[data-operator="combine"]').innerText(),'combine');
+  await page.locator('[data-operator="weight"]').hover();
+  assert.deepEqual(await dependencies(),['weights','expertOut']);
+  assert.equal(await page.locator('[data-tensor="handle"]').count(),0);
+  await page.locator('[data-tensor="weights"]').hover();
+  assert.equal(await page.getByTestId('tensor-shape').innerText(),'[4096, 8]');
+  assert.equal(await page.getByTestId('tensor-size').innerText(),'0.13 MiB');
+  assert.deepEqual(await consumers(),['weight']);
+  await page.getByLabel('Token count · T').fill('8192');
+  assert.equal(await page.getByTestId('current-memory').innerText(),'32.50 MiB');
+  await page.reload();
+  assert.equal(await page.getByLabel('Select model').inputValue(),'lingbot-video-moe');
+  await page.setViewportSize({width:390,height:844});
+  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
+  for (const width of [320,390,768,1024,1512]) {
+    await page.setViewportSize({width,height:844});
+    assert.equal(await page.locator('.ag-parameter-block').evaluate(el=>el.scrollWidth<=el.clientWidth),true);
+    const bounds=await page.locator('.ag-fixed-parameters').boundingBox();
+    for (const field of await page.locator('.ag-fixed-parameters > *').all()) {
+      const box=await field.boundingBox();
+      assert.ok(box.x>=bounds.x && box.x+box.width<=bounds.x+bounds.width+1);
+    }
+  }
+  assert.equal(await page.getByText('Selected groups',{exact:true}).count(),1);
+  await page.setViewportSize({width:390,height:844});
+  await page.screenshot({path:'/tmp/actscope-lingbot-mobile.png',fullPage:true});
+  await page.getByLabel('Select model').selectOption('minimax-h3-dit');
+  await page.waitForURL('**/#/models/minimax-h3-dit');
+  assert.deepEqual(await page.locator('.ag-strategy-bytes').allTextContents(),['1008.00 MiB','574.00 MiB','98.00 MiB','42.00 MiB']);
   assert.deepEqual(errors,[]);
   console.log('Passed: 4 cumulative levels (up/down), validation, 2 operator colors, hover/leave, no pinned click, no operator annotations, dependencies, keyboard, no ledger, mobile, cursor-centered wheel zoom, pan, reset.');
 } finally {await browser.close();}
