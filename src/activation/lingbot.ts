@@ -90,7 +90,7 @@ export const lingbot: Model = {
     operator('w2','expert_down_proj','linear',['product'],['expertOut'],['product'],520,2250,[E,H,I]),
     // Fused multiply/cast: BF16 expert values and FP32 routing weights are
     // sufficient for backward; no full FP32 expert-output allocation is required.
-    operator('weight','apply_route_weight','multiply',['expertOut','weights'],['weighted'],['expertOut','weights'],520,2350,undefined,undefined,{weights:[[170,1760],[170,1780],[290,1780],[290,2350],[458,2350]]}),
+    operator('weight','apply_route_weight','multiply',['expertOut','weights'],['weighted'],['expertOut','weights'],520,2350,undefined,undefined,{weights:[[170,1760],[170,2350],[458,2350]]}),
     // Communication combine sums already-weighted BF16 outputs. Its backward
     // is cached dispatch with the forward handle, not another weighted multiply.
     operator('combine','deepep_combine','combine',['weighted','handle'],['routed'],['handle'],520,2550,undefined,undefined,{handle:[[170,1910],[170,2550],[458,2550]]}),
