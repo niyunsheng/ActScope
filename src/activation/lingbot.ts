@@ -93,7 +93,7 @@ export const lingbot: Model = {
     operator('weight','apply_route_weight','multiply',['expertOut','weights'],['weighted'],['expertOut','weights'],520,2350,undefined,undefined,{weights:[[170,1760],[170,2350],[458,2350]]}),
     // Communication combine sums already-weighted BF16 outputs. Its backward
     // is cached dispatch with the forward handle, not another weighted multiply.
-    operator('combine','deepep_combine','combine',['weighted','handle'],['routed'],['handle'],520,2550,undefined,undefined,{handle:[[170,1910],[170,2550],[458,2550]]}),
+    operator('combine','combine','combine',['weighted','handle'],['routed'],['handle'],520,2550,undefined,undefined,{handle:[[170,1910],[170,2550],[458,2550]]}),
     operator('sharedW1','shared_gate_proj','linear',['mod2'],['sharedGate'],['mod2'],830,1300,[I*c.n_shared_experts,H],undefined,{mod2:[[520,1160],[520,1180],[910,1180],[910,1260],[830,1260],[830,1284]]}),
     operator('sharedW3','shared_up_proj','linear',['mod2'],['sharedUp'],['mod2'],990,1300,[I*c.n_shared_experts,H],undefined,{mod2:[[520,1160],[520,1180],[910,1180],[910,1260],[990,1260],[990,1284]]}),
     operator('sharedSw','swiglu','swiglu',['sharedGate','sharedUp'],['sharedProduct'],['sharedGate','sharedUp'],910,1450),

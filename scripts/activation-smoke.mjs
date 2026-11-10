@@ -175,7 +175,7 @@ try {
   assert.deepEqual(await dependencies(),[]);
   await page.locator('[data-tensor="weights"]').hover();
   assert.deepEqual(await consumers(),['weight']);
-  assert.equal(await page.locator('[data-operator="combine"]').innerText(),'deepep_combine');
+  assert.equal(await page.locator('[data-operator="combine"]').innerText(),'combine');
   await page.locator('[data-operator="weight"]').hover();
   assert.deepEqual(await dependencies(),['weights','expertOut']);
   assert.equal(await page.locator('[data-tensor="handle"]').count(),0);
