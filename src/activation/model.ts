@@ -2,14 +2,20 @@ import { tensorFactory, operator as op } from './nodes';
 import { createGrid } from './layout';
 import { operatorLabels, tensorLabels } from './labels';
 import { lingbot } from './lingbot';
+import { lingFlash } from './ling-flash';
 import { h3Config } from './h3-config';
-export type RuleKey = 'linear' | 'norm' | 'modulate' | 'rope' | 'attention' | 'swiglu' | 'residual' | 'cast' | 'sigmoid' | 'route' | 'dispatch' | 'multiply' | 'combine' | 'add';
+export type RuleKey = 'linear' | 'norm' | 'modulate' | 'rope' | 'attention' | 'swiglu' | 'residual' | 'cast' | 'sigmoid' | 'route' | 'dispatch' | 'multiply' | 'combine' | 'add' | 'reshape' | 'convolution' | 'kda' | 'gatedNorm';
 export type Category = 'gemm' | 'fa' | 'memory';
 export type Policy = Record<Category, boolean>;
 export interface Parameters { sequence: number; hidden: number; intermediate: number; heads: number; kvHeads: number; headDim: number; bytes: number }
 export interface Tensor { metadata?: string; retain?: boolean; dtype?: 'BF16' | 'FP32' | 'INT64'; id: string; label: string; shape: (p: Parameters) => number[]; x: number; y: number }
 export interface Operator { forwardOnly?: boolean; inputBranches?: Record<string, number>; weightShape?: number[]; inputLanes?: Record<string, number>; rule: RuleKey; id: string; label: string; category: Category; inputs: string[]; outputs: string[]; backward: string[]; x: number; y: number }
-export interface Model { intermediateLabel?: string; activationDtype?: string; memoryDescription?: string; regions?: { label: string; x: number; y: number; width: number; height: number }[]; layout?: { width: number; height: number }; facts?: { label: string; value: string | number }[]; note?: string; id: string; name: string; tensors: Tensor[]; operators: Operator[]; boundary: string[]; defaults: Parameters }
+export interface Model {
+  variants?: Model[];
+  attentionLabel?: string;
+  attentionDimensions?: { label: string; value: string | number }[];
+  sources?: { label: string; href: string }[];
+  intermediateLabel?: string; activationDtype?: string; memoryDescription?: string; regions?: { label: string; x: number; y: number; width: number; height: number }[]; layout?: { width: number; height: number }; facts?: { label: string; value: string | number }[]; note?: string; id: string; name: string; tensors: Tensor[]; operators: Operator[]; boundary: string[]; defaults: Parameters }
 const q = (p: Parameters) => [p.sequence, p.heads, p.headDim];
 const kv = (p: Parameters) => [p.sequence, p.kvHeads, p.headDim];
 const ff = (p: Parameters) => [p.sequence, p.intermediate];
@@ -78,4 +84,4 @@ export const h3: Model = {
     op('r2', operatorLabels.residual, 'residual', ['residual', 'fc2'], ['output'], ['fc2'], grid.point('main', 11, 'ffn'), { inputLanes: { residual: 470 } }),
   ],
 };
-export const models = [h3, lingbot];
+export const models = [h3, lingbot, lingFlash];

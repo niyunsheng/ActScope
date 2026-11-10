@@ -38,7 +38,7 @@ export function analyze(model: Model, p: Parameters, policy: Policy) {
   for (const id of model.boundary) {
     saved.set(id, new Set(['Layer boundary: recomputation input']));
   }
-  for (const t of model.tensors) if (t.retain) demand(t.id, 'Retained for communication handle lifetime');
+  for (const t of model.tensors) if (t.retain) demand(t.id, 'Retained routing indices or communication metadata');
   for (const op of model.operators) for (const id of op.backward) demand(id, `${op.label}.backward`);
   const rows = model.tensors.map(t => {
     const shape = t.shape(p);

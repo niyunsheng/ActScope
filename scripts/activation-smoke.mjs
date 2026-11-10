@@ -1,6 +1,9 @@
 import { chromium } from '@playwright/test';
 import assert from 'node:assert/strict';
-const browser=await chromium.launch({channel:'chrome',headless:true});
+const browser=await chromium.launch({
+  ...(process.env.ACTSCOPE_BROWSER_EXECUTABLE ? {executablePath:process.env.ACTSCOPE_BROWSER_EXECUTABLE} : {channel:'chrome'}),
+  headless:true,
+});
 try {
   const page=await browser.newPage({viewport:{width:1512,height:1050}});
   const errors=[];page.on('pageerror',e=>errors.push(e.message));
@@ -201,9 +204,68 @@ try {
   assert.equal(await page.getByText('Selected groups',{exact:true}).count(),1);
   await page.setViewportSize({width:390,height:844});
   await page.screenshot({path:'/tmp/actscope-lingbot-mobile.png',fullPage:true});
+  // Ling Flash has three different decoder graphs, with KDA distinct from FA.
+  await page.getByLabel('Select model').selectOption('ant-ling-3-flash');
+  await page.waitForURL('**/#/models/ant-ling-3-flash');
+  await page.setViewportSize({width:1512,height:1050});
+  assert.equal(await page.getByLabel('Layer type').inputValue(),'ling-flash-kda-moe');
+  assert.equal(await page.getByRole('link',{name:'Official model card'}).count(),1);
+  assert.match(await page.locator('.ag-model-note').first().innerText(),/not measured GPU memory/);
+  for (const [variant,total,full,projection,expert] of [
+    ['ling-flash-kda-moe','930.88 MiB','20.25 MiB','[4096, 2560]','[512, 768, 2560]'],
+    ['ling-flash-mla-moe','811.13 MiB','20.25 MiB','[6144, 2560]','[512, 768, 2560]'],
+    ['ling-flash-kda-dense','544.50 MiB','20.00 MiB','[4096, 2560]','[6144, 2560]'],
+  ]) {
+    await page.getByLabel('Layer type').selectOption(variant);
+    await page.getByRole('radio',{name:'No recomputation',exact:true}).check();
+    assert.equal(await page.getByTestId('current-memory').innerText(),total);
+    await page.locator('[data-operator="qp"]').hover();
+    assert.equal(await page.getByTestId('weight-shape').innerText(),projection);
+    await page.locator('[data-operator="w1"]').hover();
+    assert.equal(await page.getByTestId('weight-shape').innerText(),expert);
+    if (variant.includes('mla')) {
+      await page.locator('[data-tensor="q"]').hover();
+      assert.equal(await page.getByTestId('tensor-shape').innerText(),'[4096, 32, 192]');
+      await page.locator('[data-tensor="v"]').hover();
+      assert.equal(await page.getByTestId('tensor-shape').innerText(),'[4096, 32, 128]');
+      await page.locator('[data-tensor="latent"]').hover();
+      assert.equal(await page.getByTestId('tensor-shape').innerText(),'[4096, 512]');
+      assert.equal(await page.getByText('Q / K / V width',{exact:true}).count(),0);
+    } else {
+      await page.locator('[data-tensor="beta"]').hover();
+      assert.equal(await page.getByTestId('tensor-shape').innerText(),'[4096, 32]');
+      assert.match(await information.innerText(),/FP32/);
+      await page.locator('[data-operator="kda"]').hover();
+      assert.deepEqual(await dependencies(),['qConv','kConv','vConv','decay','beta']);
+      assert.equal(await page.locator('[data-operator="fa"]').count(),0);
+    }
+    await page.getByRole('radio',{name:'Recompute memory-bound + GEMM',exact:true}).check();
+    assert.equal(await page.getByTestId('current-memory').innerText(),variant.endsWith('dense')?'52.00 MiB':'52.25 MiB');
+    await page.getByRole('radio',{name:variant.includes('mla')?'Full recompute (memory-bound + GEMM + FA)':'Full recompute (memory-bound + GEMM + KDA)',exact:true}).check();
+    assert.equal(await page.getByTestId('current-memory').innerText(),full);
+    assert.equal(await page.locator('.ag-tensor.saved').count(),variant.endsWith('dense')?1:2);
+    await page.getByLabel('Token count · T').fill('8192');
+    assert.equal(await page.getByTestId('current-memory').innerText(),variant.endsWith('dense')?'40.00 MiB':'40.50 MiB');
+    await page.getByLabel('Token count · T').fill('4096');
+    for (const width of [320,390,768,1512]) {
+      await page.setViewportSize({width,height:1050});
+      assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
+      assert.equal(await page.locator('.ag-parameter-block').evaluate(el=>el.scrollWidth<=el.clientWidth),true);
+    }
+    await page.getByRole('radio',{name:'No recomputation',exact:true}).check();
+    await page.getByRole('button',{name:'Fit to view',exact:true}).click();
+    await page.evaluate(()=>window.scrollTo(0,0));
+    await page.screenshot({path:`/tmp/actscope-${variant}.png`,fullPage:true});
+    await page.setViewportSize({width:390,height:844});
+    await page.screenshot({path:`/tmp/actscope-${variant}-mobile.png`,fullPage:true});
+    await page.setViewportSize({width:1512,height:1050});
+  }
+  await page.reload();
+  assert.equal(await page.getByLabel('Select model').inputValue(),'ant-ling-3-flash');
+  assert.equal(await page.getByLabel('Layer type').inputValue(),'ling-flash-kda-moe');
   await page.getByLabel('Select model').selectOption('minimax-h3-dit');
   await page.waitForURL('**/#/models/minimax-h3-dit');
   assert.deepEqual(await page.locator('.ag-strategy-bytes').allTextContents(),['1008.00 MiB','574.00 MiB','98.00 MiB','42.00 MiB']);
   assert.deepEqual(errors,[]);
-  console.log('Passed: 4 cumulative levels (up/down), validation, 2 operator colors, hover/leave, no pinned click, no operator annotations, dependencies, keyboard, no ledger, mobile, cursor-centered wheel zoom, pan, reset.');
+  console.log('Passed: 4 cumulative levels (up/down), validation, 2 operator colors, hover/leave, no pinned click, no operator annotations, dependencies, keyboard, no ledger, mobile, cursor-centered wheel zoom, pan, reset, Ling Flash KDA/MoE, MLA/MoE and KDA/dense variants.');
 } finally {await browser.close();}
