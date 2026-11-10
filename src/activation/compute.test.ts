@@ -15,7 +15,7 @@ describe('kernel cost estimates', () => {
     expect(flops.backwardFa).toBe(2 * flops.forwardFa);
     const traffic = memoryTraffic(h3, { ...h3.defaults, sequence: T });
     const base = computeTimes(flops, referenceRates, none, traffic)!;
-    expect(base.ms.backwardGemm).toBe(flops.backwardGemm / 216 / 1e9);
+    expect(base.ms.backwardGemm).toBe(flops.backwardGemm / 220 / 1e9);
     expect(base.ms.forwardMemory).toBe(traffic.forwardMemory / referenceRates.memory / 1e6);
     expect(base.total).toBe(base.forward + base.backward);
     expect(base.relative).toBe(100);
@@ -48,7 +48,7 @@ describe('kernel cost estimates', () => {
     const a = computeTimes(flops, referenceRates, none, traffic)!;
     const b = computeTimes(flops, { ...referenceRates, gemm: 440 }, none, traffic)!;
     expect(b.ms.forwardGemm).toBe(a.ms.forwardGemm / 2);
-    expect(b.ms.backwardGemm).toBe(a.ms.backwardGemm);
+    expect(b.ms.backwardGemm).toBe(a.ms.backwardGemm / 2);
     expect(b.ms.forwardMemory).toBe(a.ms.forwardMemory);
     for (const rate of [0, -1, NaN, Infinity]) expect(computeTimes(flops, { ...referenceRates, forwardFa: rate }, none, traffic)).toBeNull();
   });

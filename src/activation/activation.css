@@ -720,6 +720,3 @@
 .ag-work-details { margin-top: 12px; font-size: 12px; }
 .ag-work-details summary { cursor: pointer; color: #526174; }
 .ag-work-details table { margin-top: 8px; }
-
-.ag-rate-input { display: flex; justify-content: flex-end; align-items: center; gap: 6px; margin: 3px 0; }
-.ag-rate-input > span { font-size: 10px; color: var(--muted); white-space: nowrap; }

@@ -16,16 +16,13 @@ export default function KernelCosts({ flops, traffic, rates, times, hardware, on
         const peak = k.id === 'memory' ? hardware.bandwidth : hardware.peak;
         return <tr key={k.id} data-rate={k.id}>
           <th scope="row">{k.label}</th>
-          <td>{(k.id === 'gemm' ? ['gemm', 'backwardGemm'] as const : [k.id]).map(id => <label className="ag-rate-input" key={id}>
-            {k.id === 'gemm' && <span>{id === 'gemm' ? 'Fwd' : 'Bwd'}</span>}
-            <input aria-label={`${id === 'backwardGemm' ? 'GEMM Backward' : k.label} kernel ${k.unit}`} type="number" min="0.01" step="any" value={rates[id] || ''} aria-invalid={!positive(rates[id])} onChange={e => onChange({ ...rates, [id]: Number(e.target.value) })} />
-          </label>)}</td>
-          <td>{k.unit}</td><td data-peak-ratio>{positive(peak) && positive(rates[k.id]) ? `${(100*rates[k.id]/peak).toFixed(1)}%` : '—'}{k.id === 'gemm' && <><br />{positive(peak) && positive(rates.backwardGemm) ? `${(100*rates.backwardGemm/peak).toFixed(1)}%` : '—'}</>}</td>
+          <td><input aria-label={`${k.label} kernel ${k.unit}`} type="number" min="0.01" step="any" value={rates[k.id] || ''} aria-invalid={!positive(rates[k.id])} onChange={e => onChange({ ...rates, [k.id]: Number(e.target.value) })} /></td>
+          <td>{k.unit}</td><td data-peak-ratio>{positive(peak) && positive(rates[k.id]) ? `${(100*rates[k.id]/peak).toFixed(1)}%` : '—'}</td>
         </tr>;
       })}</tbody>
     </table>
     {invalid && <p role="alert">Enter a positive throughput for every kernel.</p>}
-    <p>Compute defaults use your RTX PRO 5000 measurements. Memory defaults to 1,344 GB/s peak: an optimistic estimate, not measured bandwidth. Edit for your workload.</p>
+    <p>GEMM uses 220 TFLOP/s for both forward and backward; FA uses your reference rates. Memory defaults to 672 GB/s (50% of RTX PRO 5000 peak): an uncalibrated assumption, not a measurement.</p>
     <details className="ag-work-details"><summary>Work and time per layer</summary>
       <table><thead><tr><th>Computation</th><th>Work</th><th>Unit</th><th>Time (ms)</th></tr></thead><tbody>
         {([

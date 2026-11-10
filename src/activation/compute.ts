@@ -6,11 +6,11 @@ export const kernels = [
   { id: 'gemm', label: 'GEMM', unit: 'TFLOP/s', reference: 220 },
   { id: 'forwardFa', label: 'FA Forward', unit: 'TFLOP/s', reference: 215 },
   { id: 'backwardFa', label: 'FA Backward', unit: 'TFLOP/s', reference: 165 },
-  { id: 'memory', label: 'Memory-bound', unit: 'GB/s', reference: 1344 },
+  { id: 'memory', label: 'Memory-bound', unit: 'GB/s', reference: 672 },
 ] as const;
-export type KernelRates = Record<typeof kernels[number]['id'] | 'backwardGemm', number>;
+export type KernelRates = Record<typeof kernels[number]['id'], number>;
 export type KernelValues = Record<'forwardGemm' | 'forwardFa' | 'backwardGemm' | 'backwardFa', number>;
-export const referenceRates = { ...Object.fromEntries(kernels.map(k => [k.id, k.reference])), backwardGemm: 216 } as KernelRates;
+export const referenceRates = { ...Object.fromEntries(kernels.map(k => [k.id, k.reference])) } as KernelRates;
 const width = (shape: number[]) => shape.slice(1).reduce((a, b) => a * b, 1);
 
 // Logical single-sequence matmul FLOPs. Backward uses effective work (2× forward),
@@ -36,7 +36,7 @@ export function computeTimes(flops: KernelValues, rates: KernelRates, policy: Po
   if (Object.values(rates).some(rate => !positive(rate))) return null;
   const ms = {
     forwardGemm: flops.forwardGemm / rates.gemm / 1e9,
-    backwardGemm: flops.backwardGemm / rates.backwardGemm / 1e9,
+    backwardGemm: flops.backwardGemm / rates.gemm / 1e9,
     forwardFa: flops.forwardFa / rates.forwardFa / 1e9,
     backwardFa: flops.backwardFa / rates.backwardFa / 1e9,
     forwardMemory: traffic.forwardMemory / rates.memory / 1e6,
