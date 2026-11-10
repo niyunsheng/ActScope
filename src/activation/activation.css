@@ -673,3 +673,18 @@
   font-size: 14px;
   font-weight: 600;
 }
+
+.ag-forward-only {
+  position: absolute;
+  top: -13px;
+  right: -5px;
+  padding: 1px 5px;
+  border: 1px solid #adb9c7;
+  border-radius: 8px;
+  background: #f8fafc;
+  color: #526174;
+  font-size: 9px;
+  line-height: 14px;
+  white-space: nowrap;
+  pointer-events: none;
+}
