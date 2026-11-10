@@ -713,3 +713,13 @@
 @media (max-width: 800px) {
   .ag-cost-panels { grid-template-columns: minmax(0, 1fr); }
 }
+
+.ag-performance-panels { display: grid; gap: 16px; min-width: 0; }
+.ag-performance-panels > .ag-kernel-cost { margin: 0; }
+.ag-kernel-cost select { max-width: 100%; padding: 6px; border: 1px solid #adb9c7; border-radius: 5px; background: white; color: inherit; }
+.ag-work-details { margin-top: 12px; font-size: 12px; }
+.ag-work-details summary { cursor: pointer; color: #526174; }
+.ag-work-details table { margin-top: 8px; }
+
+.ag-rate-input { display: flex; justify-content: flex-end; align-items: center; gap: 6px; margin: 3px 0; }
+.ag-rate-input > span { font-size: 10px; color: var(--muted); white-space: nowrap; }

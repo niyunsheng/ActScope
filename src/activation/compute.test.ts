@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { h3, models } from './model';
 import { lingbot } from './lingbot';
 import { computeFlops, computeTimes, referenceRates } from './compute';
+import { memoryTraffic } from './memoryTraffic';
 import { none } from './engine';
 
 describe('kernel cost estimates', () => {
@@ -12,17 +13,22 @@ describe('kernel cost estimates', () => {
     expect(flops.forwardFa).toBe(4 * T * T * A);
     expect(flops.backwardGemm).toBe(2 * flops.forwardGemm);
     expect(flops.backwardFa).toBe(2 * flops.forwardFa);
-    const base = computeTimes(flops, referenceRates, none)!;
-    expect(base.total / 1000).toBeCloseTo(.902, 3);
+    const traffic = memoryTraffic(h3, { ...h3.defaults, sequence: T });
+    const base = computeTimes(flops, referenceRates, none, traffic)!;
+    expect(base.ms.backwardGemm).toBe(flops.backwardGemm / 216 / 1e9);
+    expect(base.ms.forwardMemory).toBe(traffic.forwardMemory / referenceRates.memory / 1e6);
+    expect(base.total).toBe(base.forward + base.backward);
     expect(base.relative).toBe(100);
-    expect(computeTimes(flops, referenceRates, { ...none, memory: true })).toEqual(base);
-    const gemm = computeTimes(flops, referenceRates, { ...none, memory: true, gemm: true })!;
+    const memory = computeTimes(flops, referenceRates, { ...none, memory: true }, traffic)!;
+    expect(memory.recompute).toBe(traffic.replayMemory / referenceRates.memory / 1e6);
+    expect(memory.relative).toBeGreaterThan(100);
+    const gemm = computeTimes(flops, referenceRates, { ...none, memory: true, gemm: true }, traffic)!;
     expect(gemm.forward).toBe(base.forward);
-    expect(gemm.backward).toBe(base.backward + base.ms.forwardGemm);
-    expect(gemm.relative).toBeCloseTo(113.1, 1);
-    const full = computeTimes(flops, referenceRates, { memory: true, gemm: true, fa: true })!;
+    expect(gemm.backward).toBe(base.backward + base.ms.forwardGemm + memory.recompute);
+    expect(gemm.relative).toBeGreaterThan(memory.relative);
+    const full = computeTimes(flops, referenceRates, { memory: true, gemm: true, fa: true }, traffic)!;
     expect(full.recompute).toBe(base.forward);
-    expect(full.relative).toBeCloseTo(129.8, 1);
+    expect(full.relative).toBeGreaterThan(gemm.relative);
   });
   it('counts only selected expert assignments, plus shared experts and router GEMM', () => {
     const { sequence: T, hidden: H, intermediate: I } = lingbot.defaults;
@@ -38,10 +44,12 @@ describe('kernel cost estimates', () => {
   });
   it('responds to throughput edits and rejects invalid throughput', () => {
     const flops = computeFlops(h3, h3.defaults);
-    const a = computeTimes(flops, referenceRates, none)!;
-    const b = computeTimes(flops, { ...referenceRates, forwardGemm: 440 }, none)!;
+    const traffic = memoryTraffic(h3, h3.defaults);
+    const a = computeTimes(flops, referenceRates, none, traffic)!;
+    const b = computeTimes(flops, { ...referenceRates, gemm: 440 }, none, traffic)!;
     expect(b.ms.forwardGemm).toBe(a.ms.forwardGemm / 2);
-    expect(b.backward).toBe(a.backward);
-    for (const rate of [0, -1, NaN, Infinity]) expect(computeTimes(flops, { ...referenceRates, forwardFa: rate }, none)).toBeNull();
+    expect(b.ms.backwardGemm).toBe(a.ms.backwardGemm);
+    expect(b.ms.forwardMemory).toBe(a.ms.forwardMemory);
+    for (const rate of [0, -1, NaN, Infinity]) expect(computeTimes(flops, { ...referenceRates, forwardFa: rate }, none, traffic)).toBeNull();
   });
 });

@@ -1,3 +1,6 @@
+import HardwareTable from './HardwareTable';
+import { gpus, type Hardware } from './hardware';
+import { memoryTraffic } from './memoryTraffic';
 import KernelCosts from './KernelCosts';
 import { computeFlops, computeTimes, referenceRates } from './compute';
 import { useMemo, useState } from 'react';
@@ -13,16 +16,17 @@ const levels = [
   { label: 'Full recompute (memory-bound + GEMM + FA)', detail: 'Memory-bound + GEMM + FA', policy: { memory: true, gemm: true, fa: true } },
 ];
 export default function ActivationPage({ model }: { model: Model }) {
-  const [sequence, setSequence] = useState(model.defaults.sequence);
+  const [sequence, setSequence] = useState(model.id === 'minimax-h3-dit' ? 33630 : model.defaults.sequence);
   const params = useMemo(() => ({ ...model.defaults, sequence }), [model, sequence]);
   const [level, setLevel] = useState(0);
   const [rates, setRates] = useState(referenceRates);
+  const [hardware, setHardware] = useState<Hardware>(gpus[0]);
   const data = useMemo(() => {
-    try { return { results: levels.map(item => analyze(model, params, item.policy)), flops: computeFlops(model, params), error: null }; }
-    catch (e) { return { results: null, flops: undefined, error: (e as Error).message }; }
+    try { return { results: levels.map(item => analyze(model, params, item.policy)), flops: computeFlops(model, params), traffic: memoryTraffic(model, params), error: null }; }
+    catch (e) { return { results: null, flops: undefined, traffic: undefined, error: (e as Error).message }; }
   }, [model, params]);
-  const { results, error, flops } = data;
-  const costs = levels.map(item => flops ? computeTimes(flops, rates, item.policy) : null);
+  const { results, error, flops, traffic } = data;
+  const costs = levels.map(item => flops && traffic ? computeTimes(flops, rates, item.policy, traffic) : null);
   const result = results?.[level];
   return <main className="activation-page ag-single-layer">
     <header className="ag-header">
@@ -59,7 +63,10 @@ export default function ActivationPage({ model }: { model: Model }) {
             </tbody>
           </table>
         </section>
-        <KernelCosts flops={flops} rates={rates} times={costs[0]?.ms} onChange={setRates} />
+        <div className="ag-performance-panels">
+          <HardwareTable hardware={hardware} onChange={setHardware} />
+          <KernelCosts flops={flops} traffic={traffic} rates={rates} times={costs[0]?.ms} hardware={hardware} onChange={setRates} />
+        </div>
       </div>
       {model.note && <p className="ag-model-note">{model.note}</p>}
       {error && <div className="ag-error" role="alert">{error}</div>}
@@ -73,6 +80,7 @@ export default function ActivationPage({ model }: { model: Model }) {
           <strong className="ag-strategy-bytes" data-testid={index === level ? 'current-memory' : undefined}>{summary ? formatBytes(summary.total) : '—'}</strong>
           <span className="ag-strategy-time">
             <span>Forward <b data-cost="forward">{cost ? `${cost.forward.toFixed(1)} ms` : '—'}</b></span>
+            <small data-cost="forward-memory">{cost ? `Includes ${cost.ms.forwardMemory.toFixed(1)} ms memory (${(100*cost.ms.forwardMemory/cost.forward).toFixed(1)}%)` : ''}</small>
             <span>Backward <b data-cost="backward">{cost ? `${cost.backward.toFixed(1)} ms` : '—'}</b></span>
             <small data-cost="recompute">{cost ? `Includes +${cost.recompute.toFixed(1)} ms recompute` : 'Timing unavailable'}</small>
             <span>Total <b data-cost="total">{cost ? `${cost.total.toFixed(1)} ms` : '—'}</b></span>

@@ -1,14 +1,16 @@
+import { memoryTraffic } from './memoryTraffic';
+import { positive } from './hardware';
 import type { Model, Parameters, Policy } from './model';
 
 export const kernels = [
-  { id: 'forwardGemm', label: 'Forward GEMM', reference: 220 },
-  { id: 'forwardFa', label: 'Forward FA', reference: 215 },
-  { id: 'backwardGemm', label: 'Backward GEMM', reference: 216 },
-  { id: 'backwardFa', label: 'Backward FA', reference: 165 },
+  { id: 'gemm', label: 'GEMM', unit: 'TFLOP/s', reference: 220 },
+  { id: 'forwardFa', label: 'FA Forward', unit: 'TFLOP/s', reference: 215 },
+  { id: 'backwardFa', label: 'FA Backward', unit: 'TFLOP/s', reference: 165 },
+  { id: 'memory', label: 'Memory-bound', unit: 'GB/s', reference: 1344 },
 ] as const;
-export type Kernel = typeof kernels[number]['id'];
-export type KernelValues = Record<Kernel, number>;
-export const referenceRates = Object.fromEntries(kernels.map(k => [k.id, k.reference])) as KernelValues;
+export type KernelRates = Record<typeof kernels[number]['id'] | 'backwardGemm', number>;
+export type KernelValues = Record<'forwardGemm' | 'forwardFa' | 'backwardGemm' | 'backwardFa', number>;
+export const referenceRates = { ...Object.fromEntries(kernels.map(k => [k.id, k.reference])), backwardGemm: 216 } as KernelRates;
 const width = (shape: number[]) => shape.slice(1).reduce((a, b) => a * b, 1);
 
 // Logical single-sequence matmul FLOPs. Backward uses effective work (2× forward),
@@ -30,14 +32,21 @@ export function computeFlops(model: Model, params: Parameters): KernelValues {
   return { forwardGemm: gemm, forwardFa: fa, backwardGemm: 2 * gemm, backwardFa: 2 * fa };
 }
 
-export function computeTimes(flops: KernelValues, rates: KernelValues, policy: Policy) {
-  if (kernels.some(k => !Number.isFinite(rates[k.id]) || rates[k.id] <= 0)) return null;
-  const ms = Object.fromEntries(kernels.map(k => [k.id, flops[k.id] / rates[k.id] / 1e9])) as KernelValues;
-  const forward = ms.forwardGemm + ms.forwardFa;
-  const baseBackward = ms.backwardGemm + ms.backwardFa;
-  // Explicit cost scenario: each selected GEMM/FA is replayed once during backward.
-  // Memory-bound work and communication time are excluded.
-  const recompute = (policy.gemm ? ms.forwardGemm : 0) + (policy.fa ? ms.forwardFa : 0);
+export function computeTimes(flops: KernelValues, rates: KernelRates, policy: Policy, traffic: Pick<ReturnType<typeof memoryTraffic>, 'forwardMemory' | 'backwardMemory' | 'replayMemory'>) {
+  if (Object.values(rates).some(rate => !positive(rate))) return null;
+  const ms = {
+    forwardGemm: flops.forwardGemm / rates.gemm / 1e9,
+    backwardGemm: flops.backwardGemm / rates.backwardGemm / 1e9,
+    forwardFa: flops.forwardFa / rates.forwardFa / 1e9,
+    backwardFa: flops.backwardFa / rates.backwardFa / 1e9,
+    forwardMemory: traffic.forwardMemory / rates.memory / 1e6,
+    backwardMemory: traffic.backwardMemory / rates.memory / 1e6,
+  };
+  const forward = ms.forwardGemm + ms.forwardFa + ms.forwardMemory;
+  const baseBackward = ms.backwardGemm + ms.backwardFa + ms.backwardMemory;
+  // One replay of each selected compute op and non-retained local memory op.
+  // Communication is excluded; throughput stays constant across strategies.
+  const recompute = (policy.gemm ? ms.forwardGemm : 0) + (policy.fa ? ms.forwardFa : 0) + (policy.memory ? traffic.replayMemory / rates.memory / 1e6 : 0);
   const backward = baseBackward + recompute;
   const total = forward + backward;
   return { ms, forward, backward, recompute, total, relative: total / (forward + baseBackward) * 100 };

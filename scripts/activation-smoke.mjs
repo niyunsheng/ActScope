@@ -10,14 +10,20 @@ try {
   assert.equal(await page.locator('.ag-header-brand').getByLabel('Select model').count(),1);
   assert.equal(await page.locator('.ag-header').getByText('Model',{exact:true}).count(),0);
   assert.equal(await page.getByText('/ activation lab',{exact:true}).count(),0);
-  assert.deepEqual(await page.locator('.ag-strategy-bytes').allTextContents(),['1008.00 MiB','574.00 MiB','98.00 MiB','42.00 MiB']);
-  assert.equal(await page.locator('input[type=number]').count(),5);
   const tokenCount=page.getByLabel('Token count · T',{exact:true});
-  await tokenCount.fill('33630');
+  assert.equal(await tokenCount.inputValue(),'33630');
+  assert.equal(await page.getByLabel('GPU',{exact:true}).inputValue(),'rtx-pro-5000-blackwell');
+  assert.equal(await page.locator('input[type=number]').count(),8);
+  await page.getByText('Work and time per layer',{exact:true}).click();
   assert.equal(await page.locator('[data-kernel="forwardGemm"] td').first().innerText(),'25.92');
   assert.equal(await page.locator('[data-kernel="forwardFa"] td').first().innerText(),'32.43');
-  assert.deepEqual(await page.locator('[data-cost="relative"]').allTextContents(),['100.0%','100.0%','113.1%','129.8%']);
-  const rate=page.getByLabel('Forward GEMM kernel TFLOP/s',{exact:true});
+  assert.equal(await page.locator('[data-kernel="forwardMemory"] td').first().innerText(),'11.81');
+  assert.equal(await page.locator('[data-kernel="forwardMemory"] td').last().innerText(),'8.8');
+  const relative=(await page.locator('[data-cost="relative"]').allTextContents()).map(parseFloat);
+  assert.equal(relative[0],100);
+  for(let i=1;i<relative.length;i++) assert.ok(relative[i]>relative[i-1]);
+  assert.match(await page.locator('[data-cost="forward-memory"]').first().innerText(),/8.8 ms memory/);
+  const rate=page.getByLabel('GEMM kernel TFLOP/s',{exact:true});
   const costBefore=Number(await page.locator('[data-kernel="forwardGemm"] td').last().innerText());
   await rate.fill('440');
   const costAfter=Number(await page.locator('[data-kernel="forwardGemm"] td').last().innerText());
@@ -27,7 +33,20 @@ try {
   assert.equal(await page.locator('[data-cost="total"]').first().innerText(),'—');
   assert.equal(await page.locator('[data-operator="fa"]').count(),1);
   await rate.fill('220');
+  const bandwidth=page.getByLabel('Memory-bound kernel GB/s',{exact:true});
+  await bandwidth.fill('672');
+  assert.equal(await page.locator('[data-kernel="forwardMemory"] td').last().innerText(),'17.6');
+  await bandwidth.fill('1344');
+  const baseline=await page.locator('[data-cost="total"]').first().innerText();
+  await page.getByLabel('Memory bandwidth (GB/s)',{exact:true}).fill('2000');
+  assert.equal(await page.getByLabel('GPU',{exact:true}).inputValue(),'custom');
+  assert.equal(await page.locator('[data-cost="total"]').first().innerText(),baseline);
+  assert.equal(await page.locator('[data-rate="memory"] [data-peak-ratio]').innerText(),'67.2%');
+  await page.getByLabel('GPU',{exact:true}).selectOption('rtx-pro-5000-blackwell');
+  assert.equal(await bandwidth.inputValue(),'1344');
+  await page.getByText('Work and time per layer',{exact:true}).click();
   await tokenCount.fill('4096');
+  assert.deepEqual(await page.locator('.ag-strategy-bytes').allTextContents(),['1008.00 MiB','574.00 MiB','98.00 MiB','42.00 MiB']);
 
   assert.equal(await page.getByLabel('Activation dtype',{exact:true}).count(),0);
   assert.doesNotMatch(await page.locator('body').innerText(), /\p{Script=Han}/u);
@@ -220,7 +239,7 @@ try {
   await page.screenshot({path:'/tmp/actscope-lingbot-mobile.png',fullPage:true});
   await page.getByLabel('Select model').selectOption('minimax-h3-dit');
   await page.waitForURL('**/#/models/minimax-h3-dit');
-  assert.deepEqual(await page.locator('.ag-strategy-bytes').allTextContents(),['1008.00 MiB','574.00 MiB','98.00 MiB','42.00 MiB']);
+  assert.deepEqual(await page.locator('.ag-strategy-bytes').allTextContents(),['8.08 GiB','4.60 GiB','804.62 MiB','344.84 MiB']);
   assert.deepEqual(errors,[]);
   console.log('Passed: 4 cumulative levels (up/down), validation, 2 operator colors, hover/leave, no pinned click, no operator annotations, dependencies, keyboard, no ledger, mobile, cursor-centered wheel zoom, pan, reset.');
 } finally {await browser.close();}
