@@ -10,7 +10,13 @@ const levels = [
   { label: 'Recompute memory-bound + GEMM', detail: 'Memory-bound + GEMM', policy: { memory: true, gemm: true, fa: false } },
   { label: 'Full recompute (memory-bound + GEMM + FA)', detail: 'Memory-bound + GEMM + FA', policy: { memory: true, gemm: true, fa: true } },
 ];
-export default function ActivationPage({ model }: { model: Model }) {
+export default function ActivationPage({ model: family }: { model: Model }) {
+  const [variant, setVariant] = useState(family.variants?.[0].id);
+  const model = family.variants?.find(item => item.id === variant) ?? family;
+  const attentionLabel = model.attentionLabel ?? 'FA';
+  const modelLevels = levels.map((item, index) => index < 3 ? item : {
+    ...item, label: `Full recompute (memory-bound + GEMM + ${attentionLabel})`, detail: `Memory-bound + GEMM + ${attentionLabel}`,
+  });
   const [sequence, setSequence] = useState(model.defaults.sequence);
   const params = useMemo(() => ({ ...model.defaults, sequence }), [model, sequence]);
   const [level, setLevel] = useState(0);
@@ -24,7 +30,7 @@ export default function ActivationPage({ model }: { model: Model }) {
     <header className="ag-header">
       <div className="ag-header-brand">
         <div className="ag-brand">ActScope</div>
-        <select className="ag-model-select" aria-label="Select model" value={model.id} onChange={e => { location.hash = `/models/${e.target.value}`; }}>
+        <select className="ag-model-select" aria-label="Select model" value={family.id} onChange={e => { location.hash = `/models/${e.target.value}`; }}>
           {models.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
         </select>
       </div>
@@ -38,19 +44,22 @@ export default function ActivationPage({ model }: { model: Model }) {
     <div className="ag-main">
       <section className="ag-parameter-block" aria-label="Model and single-layer parameters">
         <div className="ag-fixed-parameters">
+          {family.variants && <label className="ag-layer-field">Layer type<select aria-label="Layer type" value={variant} onChange={e => setVariant(e.target.value)}>
+            {family.variants.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}
+          </select></label>}
           <label className="ag-sequence-field">Token count · T<input aria-label="Token count · T" type="number" min={1} step={1} value={sequence || ''} onChange={e => setSequence(Number(e.target.value))} /></label>
           <div><span>Hidden size</span><strong>{params.hidden}</strong></div>
           <div><span>{model.intermediateLabel ?? 'FFN intermediate'}</span><strong>{params.intermediate}</strong></div>
           <div><span>Attention heads</span><strong>{params.heads}</strong></div>
-          <div><span>Head dimension</span><strong>{params.headDim}</strong></div>
-          <div><span>Q / K / V width</span><strong>{params.heads * params.headDim}</strong></div>
+          {(model.attentionDimensions ?? [{ label: 'Head dimension', value: params.headDim }, { label: 'Q / K / V width', value: params.heads * params.headDim }]).map(fact => <div key={fact.label}><span>{fact.label}</span><strong>{fact.value}</strong></div>)}
           <div><span>Activation dtype</span><strong>{model.activationDtype ?? 'BF16'}</strong></div>
           {model.facts?.map(fact => <div key={fact.label}><span>{fact.label}</span><strong>{fact.value}</strong></div>)}
         </div>
       </section>
       {model.note && <p className="ag-model-note">{model.note}</p>}
+      {model.sources && <p className="ag-model-note">Sources: {model.sources.map((source, index) => <span key={source.href}>{index > 0 && ' · '}<a href={source.href} target="_blank" rel="noopener noreferrer">{source.label}</a></span>)}</p>}
       {error && <div className="ag-error" role="alert">{error}</div>}
-      <fieldset className="ag-strategies"><legend>Saved activations per layer · Select a strategy to update the graph</legend>{levels.map((item,index) => {
+      <fieldset className="ag-strategies"><legend>Saved activations per layer · Select a strategy to update the graph</legend>{modelLevels.map((item,index) => {
         const summary = results?.[index];
         return <label className={`ag-strategy ${level === index ? 'active' : ''}`} key={item.label}>
           <input type="radio" name="recompute-level" aria-label={item.label} value={index} checked={level === index} onChange={() => setLevel(index)} />
@@ -60,8 +69,8 @@ export default function ActivationPage({ model }: { model: Model }) {
           <span className="ag-strategy-footer">{summary ? `${summary.savedCount} tensors saved` : 'Check parameters'}<span>{summary && results ? `Saved ${((1-summary.total/results[0].total)*100).toFixed(1)}%` : ''}</span></span>
         </label>;
       })}</fieldset>
-      <section className="ag-graph-panel"><div className="ag-panel-heading ag-graph-heading"><h2>Single-layer graph</h2><div className="ag-legend"><span><i className="compute-swatch" />Compute-bound · GEMM / FA</span><span><i className="memory-swatch" />Memory-bound</span><span><i className="yellow" />Saved</span><span><i />Not saved</span><span>Solid: forward</span><span>Dashed: backward dependencies</span><span><i className="purple" />Highlighted dependencies</span></div></div>
-        {result ? <Graph model={model} result={result} /> : <p className="ag-empty">Enter a valid configuration to display the graph.</p>}
+      <section className="ag-graph-panel"><div className="ag-panel-heading ag-graph-heading"><h2>Single-layer graph</h2><div className="ag-legend"><span><i className="compute-swatch" />Compute-bound · GEMM / {attentionLabel}</span><span><i className="memory-swatch" />Memory-bound</span><span><i className="yellow" />Saved</span><span><i />Not saved</span><span>Solid: forward</span><span>Dashed: backward dependencies</span><span><i className="purple" />Highlighted dependencies</span></div></div>
+        {result ? <Graph key={model.id} model={model} result={result} /> : <p className="ag-empty">Enter a valid configuration to display the graph.</p>}
       </section>
 
     </div>

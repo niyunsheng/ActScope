@@ -509,7 +509,7 @@
   padding-left: 14px;
 }
 
-.ag-fixed-parameters span,.ag-sequence-field {
+.ag-fixed-parameters span,.ag-sequence-field,.ag-layer-field {
   font-size: 10px;
   color: #7a8a9c;
 }
@@ -687,4 +687,13 @@
   line-height: 14px;
   white-space: nowrap;
   pointer-events: none;
+}
+
+.ag-layer-field {
+  grid-column: span 2;
+  min-width: 0;
+}
+
+.ag-layer-field select {
+  max-width: 100%;
 }

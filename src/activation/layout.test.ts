@@ -9,7 +9,7 @@ describe('graph grid', () => {
     expect(grid.size(520, 20)).toEqual({ width: 520, height: 1300 });
   });
 
-  for (const model of models) {
+  for (const model of models.flatMap(model => model.variants ?? [model])) {
     it(`${model.id} routes upward inputs through explicit lanes and keeps nodes inside the canvas`, () => {
       const tensors = new Map(model.tensors.map(t => [t.id, t]));
       for (const op of model.operators) {

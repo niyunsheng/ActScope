@@ -9,4 +9,4 @@ export const tensorFactory = (defaultDtype?: Tensor['dtype']) =>
     ({ id, label, ...position, shape, dtype });
 
 export const operator = (id: string, label: string, rule: RuleKey, inputs: string[], outputs: string[], backward: string[], position: Position, options: OperatorOptions = {}): Operator =>
-  ({ id, label, rule, category: rule === 'linear' ? 'gemm' : rule === 'attention' ? 'fa' : 'memory', inputs, outputs, backward, ...position, ...options });
+  ({ id, label, rule, category: rule === 'linear' ? 'gemm' : (rule === 'attention' || rule === 'kda') ? 'fa' : 'memory', inputs, outputs, backward, ...position, ...options });
