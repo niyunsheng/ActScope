@@ -20,13 +20,16 @@ describe('LingBot Video MoE checkpoint and logical activation ledger', () => {
     expect(row('dispatch').dimensions).toEqual([4096*8,2048]);
     expect(row('gate').dimensions).toEqual([4096*8,768]);
     expect(row('sharedGate').dimensions).toEqual([4096,768]);
+    expect(row('indices').dimensions).toEqual([4096,8]);
+    expect(row('indices').bytes).toBe(4096*8*8);
+    expect(row('indices').keep).toBe(true);
     expect(row('scores').bytes).toBe(4096*128*4);
     expect(row('routerInput').bytes).toBe(4096*2048*4);
     expect(row('expertFloat').bytes).toBe(4096*8*2048*4);
     // 16 hidden BF16 values, router FP32 input+scores, BF16 top-k weights,
     // dispatched inputs, three routed and three shared intermediate values,
     // and FP32 expert output used by the weighted-sum backward.
-    const perToken = 16*2048*2 + 2048*4 + 128*4 + 8*2 + 8*2048*2 + 3*8*768*2 + 3*768*2 + 8*2048*4;
+    const perToken = 16*2048*2 + 2048*4 + 128*4 + 8*8 + 8*2 + 8*2048*2 + 3*8*768*2 + 3*768*2 + 8*2048*4;
     expect(result.total).toBe(4096*perToken);
     expect(result.rows.some(row=>row.id==='silu' || row.id==='sharedSilu')).toBe(false);
     expect(lingbot.operators.find(op=>op.id==='sw')!.backward).toEqual(['gate','up']);
@@ -56,10 +59,12 @@ describe('LingBot Video MoE checkpoint and logical activation ledger', () => {
     const op=(id:string)=>lingbot.operators.find(op=>op.id===id)!;
     expect(op('postA').backward).toEqual(['out']);
     expect(op('postF').backward).toEqual(['moeOut']);
-    expect(op('combine').backward).toEqual(['expertFloat','weights']);
+    expect(op('combine').backward).toEqual(['expertFloat','weights','indices']);
     expect(op('add').backward).toEqual([]);
     expect(op('sigmoid').backward).toEqual(['scores']);
-    expect(op('route').backward).toEqual(['scores']);
+    expect(op('route').backward).toEqual(['scores','indices']);
+    expect(op('topk').backward).toEqual([]);
+    expect(op('dispatch').backward).toEqual(['indices']);
   });
   it('checks normalized sigmoid route and weighted-sum gradients away from top-k ties', () => {
     // Fixed selected experts: output = sum_i 2.5*sigmoid(z_i)/sum(sigmoid(z))*expert_i.

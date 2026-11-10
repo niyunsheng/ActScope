@@ -144,8 +144,8 @@ try {
   await page.setViewportSize({width:1512,height:1050});
   await page.getByLabel('Select model').selectOption('lingbot-video-moe');
   await page.waitForURL('**/#/models/lingbot-video-moe');
-  assert.deepEqual(await page.locator('.ag-strategy-bytes').allTextContents(),['836.06 MiB','350.00 MiB','32.00 MiB','16.00 MiB']);
-  for (const [index,count] of [27,13,2,1].entries()) {
+  assert.deepEqual(await page.locator('.ag-strategy-bytes').allTextContents(),['836.31 MiB','350.00 MiB','32.00 MiB','16.00 MiB']);
+  for (const [index,count] of [28,13,2,1].entries()) {
     await page.getByRole('radio',{name:labels[index],exact:true}).check();
     assert.equal(await page.locator('.ag-tensor.saved').count(),count);
   }
@@ -165,7 +165,14 @@ try {
     assert.equal(await page.locator(`[data-operator="${id}"]`).innerText(),'swiglu');
   }
   await page.locator('[data-operator="combine"]').hover();
-  assert.deepEqual(await dependencies(),['weights','expertFloat']);
+  assert.deepEqual(await dependencies(),['indices','weights','expertFloat']);
+  await page.locator('[data-tensor="indices"]').hover();
+  assert.equal(await page.getByTestId('tensor-shape').innerText(),'[4096, 8]');
+  assert.equal(await page.getByTestId('tensor-size').innerText(),'0.25 MiB');
+  assert.match(await information.innerText(),/INT64/);
+  assert.deepEqual(await consumers(),['route','dispatch','combine']);
+  await page.locator('[data-operator="dispatch"]').hover();
+  assert.deepEqual(await dependencies(),['indices']);
   await page.getByLabel('Token count · T').fill('8192');
   assert.equal(await page.getByTestId('current-memory').innerText(),'32.00 MiB');
   await page.reload();

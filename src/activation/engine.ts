@@ -42,7 +42,7 @@ export function analyze(model: Model, p: Parameters, policy: Policy) {
   const rows = model.tensors.map(t => {
     const shape = t.shape(p);
     if (shape.some(d => !Number.isSafeInteger(d) || d <= 0)) throw new Error(`Invalid shape: ${t.id}`);
-    const elementBytes = t.dtype === 'FP32' ? 4 : t.dtype === 'BF16' ? 2 : p.bytes;
+    const elementBytes = t.dtype === 'INT64' ? 8 : t.dtype === 'FP32' ? 4 : t.dtype === 'BF16' ? 2 : p.bytes;
     const bytes = shape.reduce((a, b) => a * b, elementBytes);
     if (!Number.isSafeInteger(bytes) || bytes <= 0) throw new Error('Tensor size exceeds the safe numeric range.');
     const keep = saved.has(t.id);
