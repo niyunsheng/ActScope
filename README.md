@@ -1,41 +1,6 @@
 # ActScope
 
-An interactive single-layer activation memory visualizer showing backward dependencies and how recomputation changes saved tensors. Built with React and TypeScript as a static website.
+## Supported models
 
-Supports a single **MiniMax H3 DiT** or **LingBot Video MoE 30B-A3B** layer, selected beside ActScope. Refiner layers are excluded. Total token count T is editable; main activations use BF16 (LingBot router and routing weights also include FP32). Attention activations use THD layout `[T, heads, head_dim]`; other activations use `[T, width]`, with no separate batch dimension.
-
-## Run locally
-
-```sh
-npm ci
-npm run dev -- --port 5190
-```
-
-Open the [local app](http://127.0.0.1:5190/).
-
-- Compare four cumulative strategies: no recomputation → memory-bound → memory-bound + GEMM → full recomputation (adding FA).
-- Yellow tensors are saved; white tensors are not retained.
-- Hover over an operator to highlight its backward dependencies. The toolbar shows `Bwd needs` and, for GEMMs, the weight shape `[out, in]`.
-- Hover over a tensor to highlight its backward consumers. The toolbar shows its shape, size in MiB, retention status, and `Bwd used by`.
-- Details and highlights clear when the pointer leaves; clicking does not pin them.
-- Scroll to zoom, drag the graph or nodes to pan, or use Fit and Reset.
-
-## Scope
-
-Estimates **main activations retained for backward** for one unsharded logical layer. LingBot uses a DeepEP expanded-layout abstraction; actual per-rank EP memory and communication buffers are not modeled. This is not peak GPU memory. Parameters, gradients, optimizer states, conditioning branches, norm statistics, FA LSE, and temporary workspaces are excluded.
-
-H3 follows a user-provided configuration and diagram; pre-norm and Q/K RMSNorm types are verified against the [Diffusers implementation](https://github.com/huggingface/diffusers/blob/33b3d3704242a37be8cc6be010df97aeef9dc643/src/diffusers/models/transformers/transformer_minimax_h3.py). Assumptions include standard MHA, fixed RoPE, fused SwiGLU, zero attention dropout, and trainable modulation and residual gates. See [model.ts](src/activation/model.ts) for operator dependencies and [h3-config.ts](src/activation/h3-config.ts) for dimensions. The graph displays H3’s packed FC1 as separate `gate_proj` and `up_proj` logical projections sharing one input; this does not change activation totals. Activation totals have not been validated against a runtime saved-tensor trace or GPU measurements.
-
-LingBot follows the [official source](https://github.com/Robbyant/lingbot-video/blob/dd5c231e793406c6a8893e9e4307008a9c2adfe4/lingbot_video/transformer_lingbot_video.py) and [checkpoint config](https://huggingface.co/robbyant/lingbot-video-moe-30b-a3b/blob/f2e538f64afe00cc4ae674db2aeb52e2945edfd5/transformer/config.json): 128 experts, top-8 routing, one shared expert; T includes video and text tokens. Its proposed [DeepEP EPBuffer](https://github.com/deepseek-ai/DeepEP#interfaces-and-examples) integration is not the published runtime. The graph counts unpadded logical T×8 expert rows, applies FP32 routing weights before BF16 combine, and retains indices across recomputation. Routing-weight transport copies, padding and the hidden routing handle's unknown storage are excluded. These are modeling assumptions, not a measured training trace.
-
-## Development and deployment
-
-Models are defined in `src/activation/model.ts`; the analysis engine, rendering, and viewport controls are shared. To add a model, define a `Model` and register it in `models`. Layout uses named columns and section-relative rows via `createGrid` in `layout.ts` (50 px per row). Connections follow node anchors; special paths specify a side lane or branch column instead of fixed point lists. Recompute policies do not move nodes.
-
-```sh
-npm test              # Analysis and numerical gradient tests
-npm run test:browser  # Requires the local server and Chrome
-npm run build         # Type checking and production build
-```
-
-Deploy `dist/` to GitHub Pages. Changes must go through a feature branch and PR; `main` requires the `validate` check and disallows direct or forced pushes, including administrators.
+- MiniMax H3 · DiT
+- LingBot Video · MoE 30B-A3B
