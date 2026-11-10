@@ -37,12 +37,12 @@ export const lingbot: Model = {
     tensor('weights','Top-k weights',260,1550,p=>[p.sequence,K]),
     tensor('dispatch','Dispatched tokens',260,1650,routedHidden),
     tensor('gate','Expert gate',160,1750,routedFF), tensor('up','Expert up',360,1750,routedFF),
-    tensor('silu','Expert SiLU',160,1850,routedFF), tensor('product','Expert product',260,1950,routedFF),
+    tensor('product','Expert SwiGLU output',260,1950,routedFF),
     tensor('expertOut','Expert output',260,2050,routedHidden),
     tensor('expertFloat','Expert output FP32',260,2150,routedHidden,'FP32'),
     tensor('routed','Routed sum',260,2350),
     tensor('sharedGate','Shared gate',710,1750,sharedFF), tensor('sharedUp','Shared up',910,1750,sharedFF),
-    tensor('sharedSilu','Shared SiLU',710,1850,sharedFF), tensor('sharedProduct','Shared product',810,1950,sharedFF),
+    tensor('sharedProduct','Shared SwiGLU output',810,1950,sharedFF),
     tensor('sharedOut','Shared output',810,2050),
     tensor('moeOut','MoE output',500,2450), tensor('postFFN','Post-FFN norm',500,2550), tensor('output', tensorLabels.output,500,2800),
   ],
@@ -73,11 +73,11 @@ export const lingbot: Model = {
     operator('route','group_topk_norm','route',['scores'],['weights'],['scores'],260,1500),
     // Weights encode the routing decision for replay; dispatch backward needs indices only.
     operator('dispatch','dispatch','dispatch',['mod2','weights'],['dispatch'],[],260,1600,undefined,{mod2:80}),
-    // Eager expert path: separate SiLU and multiply, not a fused SwiGLU backward.
+    // Fused SwiGLU abstraction, matching H3: backward retains gate/up,
+    // reconstructing SiLU(gate) rather than retaining its separate output.
     operator('w1','expert_gate_proj','linear',['dispatch'],['gate'],['dispatch'],160,1700,[E,I,H]),
     operator('w3','expert_up_proj','linear',['dispatch'],['up'],['dispatch'],360,1700,[E,I,H]),
-    operator('silu','silu','silu',['gate'],['silu'],['gate'],160,1800),
-    operator('mul','multiply','multiply',['silu','up'],['product'],['silu','up'],260,1900),
+    operator('sw','swiglu','swiglu',['gate','up'],['product'],['gate','up'],260,1850),
     operator('w2','expert_down_proj','linear',['product'],['expertOut'],['product'],260,2000,[E,H,I]),
     operator('castExpert','cast_fp32','cast',['expertOut'],['expertFloat'],[],260,2100),
     // Weighted scatter uses FP32 expert values for d(route weights); normalized
@@ -85,8 +85,7 @@ export const lingbot: Model = {
     operator('combine','weighted_sum','combine',['expertFloat','weights'],['routed'],['expertFloat','weights'],260,2300,undefined,{weights:60}),
     operator('sharedW1','shared_gate_proj','linear',['mod2'],['sharedGate'],['mod2'],710,1700,[I*c.n_shared_experts,H],{mod2:650}),
     operator('sharedW3','shared_up_proj','linear',['mod2'],['sharedUp'],['mod2'],910,1700,[I*c.n_shared_experts,H],{mod2:1070}),
-    operator('sharedSilu','silu','silu',['sharedGate'],['sharedSilu'],['sharedGate'],710,1800),
-    operator('sharedMul','multiply','multiply',['sharedSilu','sharedUp'],['sharedProduct'],['sharedSilu','sharedUp'],810,1900),
+    operator('sharedSw','swiglu','swiglu',['sharedGate','sharedUp'],['sharedProduct'],['sharedGate','sharedUp'],810,1850),
     operator('sharedW2','shared_down_proj','linear',['sharedProduct'],['sharedOut'],['sharedProduct'],810,2000,[H,I*c.n_shared_experts]),
     // Addition backward needs only upstream gradients, not either input's value.
     operator('add','add','add',['routed','sharedOut'],['moeOut'],[],500,2400),

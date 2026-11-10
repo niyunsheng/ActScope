@@ -24,11 +24,13 @@ describe('LingBot Video MoE checkpoint and logical activation ledger', () => {
     expect(row('routerInput').bytes).toBe(4096*2048*4);
     expect(row('expertFloat').bytes).toBe(4096*8*2048*4);
     // 16 hidden BF16 values, router FP32 input+scores, BF16 top-k weights,
-    // dispatched inputs, four routed and four shared intermediate values,
+    // dispatched inputs, three routed and three shared intermediate values,
     // and FP32 expert output used by the weighted-sum backward.
-    const perToken = 16*2048*2 + 2048*4 + 128*4 + 8*2 + 8*2048*2 + 4*8*768*2 + 4*768*2 + 8*2048*4;
+    const perToken = 16*2048*2 + 2048*4 + 128*4 + 8*2 + 8*2048*2 + 3*8*768*2 + 3*768*2 + 8*2048*4;
     expect(result.total).toBe(4096*perToken);
-    expect(row('silu').keep).toBe(true); // Eager SiLU + multiply, not fused SwiGLU.
+    expect(result.rows.some(row=>row.id==='silu' || row.id==='sharedSilu')).toBe(false);
+    expect(lingbot.operators.find(op=>op.id==='sw')!.backward).toEqual(['gate','up']);
+    expect(lingbot.operators.find(op=>op.id==='sharedSw')!.backward).toEqual(['sharedGate','sharedUp']);
   });
   it('preserves backward frontiers for all policies and scales with joint token count', () => {
     for (let mask=0;mask<8;mask++) {

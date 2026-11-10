@@ -55,7 +55,7 @@ export default function ActivationPage({ model }: { model: Model }) {
         return <label className={`ag-strategy ${level === index ? 'active' : ''}`} key={item.label}>
           <input type="radio" name="recompute-level" aria-label={item.label} value={index} checked={level === index} onChange={() => setLevel(index)} />
           <span className="ag-strategy-heading"><span className="ag-level-number">{index}</span><strong>{item.label}</strong><span className="ag-choice-mark" aria-hidden="true">{level === index ? '●' : '○'}</span></span>
-          <span className="ag-strategy-description">{index === 0 ? 'No recomputation' : index === 1 && model.facts ? 'Norm, routing, SiLU, dispatch, combine' : item.detail}</span>
+          <span className="ag-strategy-description">{index === 0 ? 'No recomputation' : index === 1 && model.facts ? 'Norm, routing, SwiGLU, dispatch, combine' : item.detail}</span>
           <strong className="ag-strategy-bytes" data-testid={index === level ? 'current-memory' : undefined}>{summary ? formatBytes(summary.total) : '—'}</strong>
           <span className="ag-strategy-footer">{summary ? `${summary.savedCount} tensors saved` : 'Check parameters'}<span>{summary && results ? `Saved ${((1-summary.total/results[0].total)*100).toFixed(1)}%` : ''}</span></span>
         </label>;
