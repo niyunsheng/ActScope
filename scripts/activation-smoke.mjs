@@ -209,8 +209,8 @@ try {
   for (const width of [320,390,768,1024,1512]) {
     await page.setViewportSize({width,height:844});
     assert.equal(await page.locator('.ag-parameter-block').evaluate(el=>el.scrollWidth<=el.clientWidth),true);
-    const bounds=await page.locator('.ag-fixed-parameters').boundingBox();
-    for (const field of await page.locator('.ag-fixed-parameters > *').all()) {
+    const bounds=await page.locator('.ag-config-table').boundingBox();
+    for (const field of await page.locator('.ag-config-table tbody tr').all()) {
       const box=await field.boundingBox();
       assert.ok(box.x>=bounds.x && box.x+box.width<=bounds.x+bounds.width+1);
     }

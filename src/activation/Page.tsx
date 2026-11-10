@@ -40,21 +40,29 @@ export default function ActivationPage({ model }: { model: Model }) {
       </a>
     </header>
     <div className="ag-main">
-      <section className="ag-parameter-block" aria-label="Model and single-layer parameters">
-        <div className="ag-fixed-parameters">
-          <label className="ag-sequence-field">Token count · T<input aria-label="Token count · T" type="number" min={1} step={1} value={sequence || ''} onChange={e => setSequence(Number(e.target.value))} /></label>
-          <div><span>Hidden size</span><strong>{params.hidden}</strong></div>
-          <div><span>{model.intermediateLabel ?? 'FFN intermediate'}</span><strong>{params.intermediate}</strong></div>
-          <div><span>Attention heads</span><strong>{params.heads}</strong></div>
-          <div><span>Head dimension</span><strong>{params.headDim}</strong></div>
-          <div><span>Q / K / V width</span><strong>{params.heads * params.headDim}</strong></div>
-          <div><span>Activation dtype</span><strong>{model.activationDtype ?? 'BF16'}</strong></div>
-          {model.facts?.map(fact => <div key={fact.label}><span>{fact.label}</span><strong>{fact.value}</strong></div>)}
-        </div>
-      </section>
+      <div className="ag-cost-panels">
+        <section className="ag-parameter-block ag-kernel-cost" aria-label="Model and single-layer parameters">
+          <h2>Model config</h2>
+          <table className="ag-config-table">
+            <thead><tr><th>Parameter</th><th>Value</th></tr></thead>
+            <tbody>
+              <tr><th scope="row">Token count · T</th><td><input aria-label="Token count · T" type="number" min={1} step={1} value={sequence || ''} onChange={e => setSequence(Number(e.target.value))} /></td></tr>
+              {[
+                { label: 'Hidden size', value: params.hidden },
+                { label: model.intermediateLabel ?? 'FFN intermediate', value: params.intermediate },
+                { label: 'Attention heads', value: params.heads },
+                { label: 'Head dimension', value: params.headDim },
+                { label: 'Q / K / V width', value: params.heads * params.headDim },
+                { label: 'Activation dtype', value: model.activationDtype ?? 'BF16' },
+                ...(model.facts ?? []),
+              ].map(fact => <tr key={fact.label}><th scope="row">{fact.label}</th><td>{fact.value}</td></tr>)}
+            </tbody>
+          </table>
+        </section>
+        <KernelCosts flops={flops} rates={rates} times={costs[0]?.ms} onChange={setRates} />
+      </div>
       {model.note && <p className="ag-model-note">{model.note}</p>}
       {error && <div className="ag-error" role="alert">{error}</div>}
-      <KernelCosts flops={flops} rates={rates} times={costs[0]?.ms} onChange={setRates} />
       <fieldset className="ag-strategies"><legend>Saved activations per layer · Select a strategy to update the graph</legend>{levels.map((item,index) => {
         const summary = results?.[index];
         const cost = costs[index];
