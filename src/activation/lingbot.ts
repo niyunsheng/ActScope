@@ -82,7 +82,7 @@ export const lingbot: Model = {
     operator('route','gather_norm_scale','route',['scores','indices'],['weights'],['scores','indices'],170,1700,undefined,undefined,{scores:[[170,1560],[90,1560],[90,1700],[108,1700]]}),
     // DeepEP expanded dispatch transports weights without applying them to X.
     // Backward combines token/weight gradients using the saved forward handle.
-    operator('dispatch','deepep_dispatch','dispatch',['mod2','indices','weights'],['dispatch','recvWeights','handle'],['handle'],520,1850,undefined,undefined,{mod2:[[520,1160],[520,1834]],indices:[[170,1660],[310,1660],[310,1840],[458,1840]],weights:[[170,1760],[290,1760],[290,1860],[458,1860]]}),
+    operator('dispatch','dispatch','dispatch',['mod2','indices','weights'],['dispatch','recvWeights','handle'],['handle'],520,1850,undefined,undefined,{mod2:[[520,1160],[520,1834]],indices:[[170,1660],[310,1660],[310,1840],[458,1840]],weights:[[170,1760],[290,1760],[290,1860],[458,1860]]}),
     // Fused SwiGLU abstraction, matching H3: backward retains gate/up,
     // reconstructing SiLU(gate) rather than retaining its separate output.
     operator('w1','expert_gate_proj','linear',['dispatch'],['gate'],['dispatch'],440,1950,[E,I,H]),
