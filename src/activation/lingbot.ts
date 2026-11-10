@@ -25,8 +25,8 @@ export const lingbot: Model = {
     { label: 'Shared expert', x: 750, y: 1200, width: 340, height: 1410 },
   ],
   defaults: { sequence: 4096, hidden: H, intermediate: I, heads: c.num_attention_heads, kvHeads: c.num_attention_heads, headDim: H / c.num_attention_heads, bytes: 2 },
-  facts: [{label:'Routed experts',value:E}, {label:'Top-k experts',value:K}, {label:'Groups',value:c.n_group}, {label:'Selected groups',value:c.topk_group}, {label:'Shared experts',value:c.n_shared_experts}],
-  note: 'T = video + text tokens. Logical activation estimate; includes INT64 top-k indices; excludes permutation buffers, expert padding, norm/FA auxiliary state and conditioning.',
+  facts: [{label:'EP backend',value:'DeepEP'}, {label:'Routed experts',value:E}, {label:'Top-k experts',value:K}, {label:'Groups',value:c.n_group}, {label:'Selected groups',value:c.topk_group}, {label:'Shared experts',value:c.n_shared_experts}],
+  note: 'DeepEP expanded-layout abstraction: R = T × 8 unpadded expert rows, not a per-rank EP estimate. Handle retained; its storage, communication buffers and padding are excluded.',
   boundary: ['input'],
   tensors: [
     tensor('input', tensorLabels.input,520,35), tensor('norm1', tensorLabels.norm1,520,135), tensor('mod1', tensorLabels.mod1,520,235),
@@ -39,13 +39,15 @@ export const lingbot: Model = {
     tensor('routerInput','Router input FP32',170,1350,hidden,'FP32'),
     tensor('logits','Router logits',170,1450,p=>[p.sequence,E],'FP32'),
     tensor('scores','Sigmoid scores',170,1550,p=>[p.sequence,E],'FP32'),
-    tensor('indices','Top-k indices',170,1650,p=>[p.sequence,K],'INT64'),
-    tensor('weights','Top-k weights',170,1750,p=>[p.sequence,K]),
+    { ...tensor('indices','Top-k indices',170,1650,p=>[p.sequence,K],'INT64'), retain: true },
+    tensor('weights','Top-k weights',170,1750,p=>[p.sequence,K],'FP32'),
+    tensor('recvWeights','Received weights',330,1900,p=>[p.sequence*K],'FP32'),
+    { ...tensor('handle','EP handle',170,1900,()=>[]), metadata: 'Routing/layout metadata · size excluded', retain: true },
     tensor('dispatch','Dispatched tokens',520,1900,routedHidden),
     tensor('gate','Expert gate',440,2000,routedFF), tensor('up','Expert up',600,2000,routedFF),
     tensor('product','Expert SwiGLU output',520,2150,routedFF),
     tensor('expertOut','Expert output',520,2300,routedHidden),
-    tensor('expertFloat','Expert output FP32',520,2400,routedHidden,'FP32'),
+    tensor('weighted','Weighted output BF16',520,2400,routedHidden),
     tensor('routed','Routed sum',520,2600),
     tensor('sharedGate','Shared gate',830,1350,sharedFF), tensor('sharedUp','Shared up',990,1350,sharedFF),
     tensor('sharedProduct','Shared SwiGLU output',910,1500,sharedFF),
@@ -78,19 +80,21 @@ export const lingbot: Model = {
     // indices plus scores; replay assumes deterministic selection, including ties.
     operator('topk','group_limited_topk','route',['scores'],['indices'],[],170,1600),
     operator('route','gather_norm_scale','route',['scores','indices'],['weights'],['scores','indices'],170,1700,undefined,undefined,{scores:[[170,1560],[90,1560],[90,1700],[108,1700]]}),
-    // Pure token dispatch uses indices, not weight values. With no padding/drop,
-    // indices stand in for the logical permutation; concrete permutation buffers are excluded.
-    operator('dispatch','dispatch','dispatch',['mod2','indices'],['dispatch'],['indices'],520,1850,undefined,undefined,{mod2:[[520,1160],[520,1834]],indices:[[170,1660],[310,1660],[310,1850],[458,1850]]}),
+    // DeepEP expanded dispatch transports weights without applying them to X.
+    // Backward combines token/weight gradients using the saved forward handle.
+    operator('dispatch','deepep_dispatch','dispatch',['mod2','indices','weights'],['dispatch','recvWeights','handle'],['handle'],520,1850,undefined,undefined,{mod2:[[520,1160],[520,1834]],indices:[[170,1660],[310,1660],[310,1840],[458,1840]],weights:[[170,1760],[290,1760],[290,1860],[458,1860]]}),
     // Fused SwiGLU abstraction, matching H3: backward retains gate/up,
     // reconstructing SiLU(gate) rather than retaining its separate output.
     operator('w1','expert_gate_proj','linear',['dispatch'],['gate'],['dispatch'],440,1950,[E,I,H]),
     operator('w3','expert_up_proj','linear',['dispatch'],['up'],['dispatch'],600,1950,[E,I,H]),
     operator('sw','swiglu','swiglu',['gate','up'],['product'],['gate','up'],520,2100),
     operator('w2','expert_down_proj','linear',['product'],['expertOut'],['product'],520,2250,[E,H,I]),
-    operator('castExpert','cast_fp32','cast',['expertOut'],['expertFloat'],[],520,2350),
-    // Weighted scatter uses FP32 expert values for d(route weights); normalized
-    // BF16 weights for d(expert values). Indices identify the destination token slots.
-    operator('combine','weighted_combine','combine',['expertFloat','weights','indices'],['routed'],['expertFloat','weights','indices'],520,2550,undefined,undefined,{weights:[[170,1760],[170,1790],[60,1790],[60,2560],[458,2560]],indices:[[170,1660],[310,1660],[310,2540],[458,2540]]}),
+    // Fused multiply/cast: BF16 expert values and FP32 received weights are
+    // sufficient for backward; no full FP32 expert-output allocation is required.
+    operator('weight','apply_route_weight','multiply',['expertOut','recvWeights'],['weighted'],['expertOut','recvWeights'],520,2350,undefined,undefined,{recvWeights:[[330,1910],[330,2350],[458,2350]]}),
+    // Communication combine sums already-weighted BF16 outputs. Its backward
+    // is cached dispatch with the forward handle, not another weighted multiply.
+    operator('combine','deepep_combine','combine',['weighted','handle'],['routed'],['handle'],520,2550,undefined,undefined,{handle:[[170,1910],[170,2550],[458,2550]]}),
     operator('sharedW1','shared_gate_proj','linear',['mod2'],['sharedGate'],['mod2'],830,1300,[I*c.n_shared_experts,H],undefined,{mod2:[[520,1160],[520,1180],[910,1180],[910,1260],[830,1260],[830,1284]]}),
     operator('sharedW3','shared_up_proj','linear',['mod2'],['sharedUp'],['mod2'],990,1300,[I*c.n_shared_experts,H],undefined,{mod2:[[520,1160],[520,1180],[910,1180],[910,1260],[990,1260],[990,1284]]}),
     operator('sharedSw','swiglu','swiglu',['sharedGate','sharedUp'],['sharedProduct'],['sharedGate','sharedUp'],910,1450),

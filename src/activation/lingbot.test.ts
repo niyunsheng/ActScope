@@ -25,11 +25,16 @@ describe('LingBot Video MoE checkpoint and logical activation ledger', () => {
     expect(row('indices').keep).toBe(true);
     expect(row('scores').bytes).toBe(4096*128*4);
     expect(row('routerInput').bytes).toBe(4096*2048*4);
-    expect(row('expertFloat').bytes).toBe(4096*8*2048*4);
-    // 16 hidden BF16 values, router FP32 input+scores, BF16 top-k weights,
+    expect(row('expertOut').bytes).toBe(4096*8*2048*2);
+    expect(row('recvWeights').dimensions).toEqual([4096*8]);
+    expect(row('recvWeights').bytes).toBe(4096*8*4);
+    expect(row('handle').bytes).toBe(0);
+    expect(row('handle').metadata).toContain('size excluded');
+    expect(row('weights').keep).toBe(false);
+    // 16 hidden BF16 values, router FP32 input+scores, FP32 received weights,
     // dispatched inputs, three routed and three shared intermediate values,
-    // and FP32 expert output used by the weighted-sum backward.
-    const perToken = 16*2048*2 + 2048*4 + 128*4 + 8*8 + 8*2 + 8*2048*2 + 3*8*768*2 + 3*768*2 + 8*2048*4;
+    // and BF16 expert output used by the weight-multiply backward.
+    const perToken = 16*2048*2 + 2048*4 + 128*4 + 8*8 + 8*4 + 8*2048*2 + 3*8*768*2 + 3*768*2 + 8*2048*2;
     expect(result.total).toBe(4096*perToken);
     expect(result.rows.some(row=>row.id==='silu' || row.id==='sharedSilu')).toBe(false);
     expect(lingbot.operators.find(op=>op.id==='sw')!.backward).toEqual(['gate','up']);
@@ -40,6 +45,8 @@ describe('LingBot Video MoE checkpoint and logical activation ledger', () => {
       const policy={memory:!!(mask&1),gemm:!!(mask&2),fa:!!(mask&4)};
       const result=analyze(lingbot,p,policy);
       const kept=new Set(result.rows.filter(row=>row.keep).map(row=>row.id));
+      expect(kept.has('handle') && kept.has('indices')).toBe(true);
+      expect(result.rows.find(row=>row.id==='handle')!.recompute).toBe(false);
       function available(id:string):boolean {
         if (kept.has(id)) return true;
         const producer=lingbot.operators.find(op=>op.outputs.includes(id));
@@ -49,22 +56,25 @@ describe('LingBot Video MoE checkpoint and logical activation ledger', () => {
       expect(analyze(lingbot,{...p,sequence:8192},policy).total).toBe(result.total*2);
     }
     const results=levels.map(policy=>analyze(lingbot,p,policy));
-    expect(results[2].rows.filter(row=>row.keep).map(row=>row.id)).toEqual(['input','attention']);
-    expect(results[3].rows.filter(row=>row.keep).map(row=>row.id)).toEqual(['input']);
-    expect(results[2].total).toBe(32*1024**2);
-    expect(results[3].total).toBe(16*1024**2);
+    expect(results[2].rows.filter(row=>row.keep).map(row=>row.id)).toEqual(['input','attention','indices','handle']);
+    expect(results[3].rows.filter(row=>row.keep).map(row=>row.id)).toEqual(['input','indices','handle']);
+    expect(results[2].total).toBe(32.25*1024**2);
+    expect(results[3].total).toBe(16.25*1024**2);
     results.slice(1).forEach((r,i)=>expect(r.total).toBeLessThan(results[i].total));
   });
   it('models post norms, shared branch and weighted routing dependencies', () => {
     const op=(id:string)=>lingbot.operators.find(op=>op.id===id)!;
     expect(op('postA').backward).toEqual(['out']);
     expect(op('postF').backward).toEqual(['moeOut']);
-    expect(op('combine').backward).toEqual(['expertFloat','weights','indices']);
+    expect(op('combine').backward).toEqual(['handle']);
+    expect(op('combine').inputs).toEqual(['weighted','handle']);
+    expect(op('weight').backward).toEqual(['expertOut','recvWeights']);
+    expect(lingbot.tensors.some(t=>t.id==='expertFloat')).toBe(false);
     expect(op('add').backward).toEqual([]);
     expect(op('sigmoid').backward).toEqual(['scores']);
     expect(op('route').backward).toEqual(['scores','indices']);
     expect(op('topk').backward).toEqual([]);
-    expect(op('dispatch').backward).toEqual(['indices']);
+    expect(op('dispatch').backward).toEqual(['handle']);
   });
   it('checks normalized sigmoid route and weighted-sum gradients away from top-k ties', () => {
     // Fixed selected experts: output = sum_i 2.5*sigmoid(z_i)/sum(sigmoid(z))*expert_i.

@@ -19,8 +19,8 @@ export default function NodeDetails({ operator, tensor, rows, operators }: {
         return row.label;
       }).join(', ') || 'None'}</span>
     </> : tensor ? <>
-      <strong>{tensor.label}</strong> · <code data-testid="tensor-shape">{shape(tensor.dimensions)}</code>
-      {' · '}{tensor.dtype && tensor.dtype !== 'BF16' && `${tensor.dtype} · `}<strong data-testid="tensor-size">{(tensor.bytes / 1024 ** 2).toFixed(2)} MiB</strong>
+      <strong>{tensor.label}</strong>{tensor.metadata ? <> · {tensor.metadata}</> : <> · <code data-testid="tensor-shape">{shape(tensor.dimensions)}</code>
+      {' · '}{tensor.dtype && tensor.dtype !== 'BF16' && `${tensor.dtype} · `}<strong data-testid="tensor-size">{(tensor.bytes / 1024 ** 2).toFixed(2)} MiB</strong></>}
       {' · '}{tensor.keep ? 'Saved' : 'Not retained'}
       <span> · Bwd used by: {operators.filter(op => op.backward.includes(tensor.id)).map(op => op.label).join(', ') || 'None'}</span>
     </> : 'Scroll to zoom · Drag graph or nodes to pan'}

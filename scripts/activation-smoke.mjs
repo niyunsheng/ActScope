@@ -144,8 +144,8 @@ try {
   await page.setViewportSize({width:1512,height:1050});
   await page.getByLabel('Select model').selectOption('lingbot-video-moe');
   await page.waitForURL('**/#/models/lingbot-video-moe');
-  assert.deepEqual(await page.locator('.ag-strategy-bytes').allTextContents(),['836.31 MiB','350.00 MiB','32.00 MiB','16.00 MiB']);
-  for (const [index,count] of [28,13,2,1].entries()) {
+  assert.deepEqual(await page.locator('.ag-strategy-bytes').allTextContents(),['708.38 MiB','350.25 MiB','32.25 MiB','16.25 MiB']);
+  for (const [index,count] of [29,15,4,3].entries()) {
     await page.getByRole('radio',{name:labels[index],exact:true}).check();
     assert.equal(await page.locator('.ag-tensor.saved').count(),count);
   }
@@ -165,19 +165,29 @@ try {
     assert.equal(await page.locator(`[data-operator="${id}"]`).innerText(),'swiglu');
   }
   await page.locator('[data-operator="combine"]').hover();
-  assert.deepEqual(await dependencies(),['indices','weights','expertFloat']);
+  assert.deepEqual(await dependencies(),['handle']);
   await page.locator('[data-tensor="indices"]').hover();
   assert.equal(await page.getByTestId('tensor-shape').innerText(),'[4096, 8]');
   assert.equal(await page.getByTestId('tensor-size').innerText(),'0.25 MiB');
   assert.match(await information.innerText(),/INT64/);
-  assert.deepEqual(await consumers(),['route','dispatch','combine']);
+  assert.deepEqual(await consumers(),['route']);
   await page.locator('[data-operator="dispatch"]').hover();
-  assert.deepEqual(await dependencies(),['indices']);
+  assert.deepEqual(await dependencies(),['handle']);
   await page.locator('[data-tensor="weights"]').hover();
-  assert.deepEqual(await consumers(),['combine']);
-  assert.equal(await page.locator('[data-operator="combine"]').innerText(),'weighted_combine');
+  assert.deepEqual(await consumers(),[]);
+  assert.equal(await page.locator('[data-operator="combine"]').innerText(),'deepep_combine');
+  await page.locator('[data-operator="weight"]').hover();
+  assert.deepEqual(await dependencies(),['recvWeights','expertOut']);
+  await page.locator('[data-tensor="handle"]').hover();
+  assert.deepEqual(await consumers(),['dispatch','combine']);
+  assert.match(await information.innerText(),/size excluded/);
+  assert.equal(await page.getByTestId('tensor-size').count(),0);
+  await page.locator('[data-tensor="recvWeights"]').hover();
+  assert.equal(await page.getByTestId('tensor-shape').innerText(),'[32768]');
+  assert.equal(await page.getByTestId('tensor-size').innerText(),'0.13 MiB');
+  assert.deepEqual(await consumers(),['weight']);
   await page.getByLabel('Token count · T').fill('8192');
-  assert.equal(await page.getByTestId('current-memory').innerText(),'32.00 MiB');
+  assert.equal(await page.getByTestId('current-memory').innerText(),'32.50 MiB');
   await page.reload();
   assert.equal(await page.getByLabel('Select model').inputValue(),'lingbot-video-moe');
   await page.setViewportSize({width:390,height:844});

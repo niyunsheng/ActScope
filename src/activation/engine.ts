@@ -26,7 +26,7 @@ export function analyze(model: Model, p: Parameters, policy: Policy) {
   const walked = new Set<string>();
   function demand(id: string, reason: string) {
     const producer = producers.get(id);
-    if (model.boundary.includes(id) || !producer || !policy[producer.category]) {
+    if (tensors.get(id)!.retain || model.boundary.includes(id) || !producer || !policy[producer.category]) {
       if (!saved.has(id)) saved.set(id, new Set());
       saved.get(id)!.add(reason); return;
     }
@@ -38,13 +38,14 @@ export function analyze(model: Model, p: Parameters, policy: Policy) {
   for (const id of model.boundary) {
     saved.set(id, new Set(['Layer boundary: recomputation input']));
   }
+  for (const t of model.tensors) if (t.retain) demand(t.id, 'Retained for communication handle lifetime');
   for (const op of model.operators) for (const id of op.backward) demand(id, `${op.label}.backward`);
   const rows = model.tensors.map(t => {
     const shape = t.shape(p);
     if (shape.some(d => !Number.isSafeInteger(d) || d <= 0)) throw new Error(`Invalid shape: ${t.id}`);
     const elementBytes = t.dtype === 'INT64' ? 8 : t.dtype === 'FP32' ? 4 : t.dtype === 'BF16' ? 2 : p.bytes;
-    const bytes = shape.reduce((a, b) => a * b, elementBytes);
-    if (!Number.isSafeInteger(bytes) || bytes <= 0) throw new Error('Tensor size exceeds the safe numeric range.');
+    const bytes = t.metadata ? 0 : shape.reduce((a, b) => a * b, elementBytes);
+    if (!Number.isSafeInteger(bytes) || (bytes <= 0 && !t.metadata)) throw new Error('Tensor size exceeds the safe numeric range.');
     const keep = saved.has(t.id);
     const retained = keep ? bytes : 0;
     return { ...t, dimensions: shape, bytes, keep, retained, recompute: recomputed.has(t.id), reasons: [...(saved.get(t.id) ?? [])] };
