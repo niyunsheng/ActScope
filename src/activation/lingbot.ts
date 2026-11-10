@@ -13,8 +13,8 @@ const routedFF = (p: Parameters) => [p.sequence * K, p.intermediate];
 const sharedFF = (p: Parameters) => [p.sequence, p.intermediate * c.n_shared_experts];
 const tensor = (id: string, label: string, x: number, y: number, shape = hidden, dtype: 'BF16' | 'FP32' = 'BF16'): Tensor =>
   ({ id, label, x, y, shape, dtype, formula: '' });
-const operator = (id: string, label: string, rule: RuleKey, inputs: string[], outputs: string[], backward: string[], x: number, y: number, weightShape?: number[], inputLanes?: Record<string, number>): Operator =>
-  ({ id, label, rule, category: rule === 'linear' ? 'gemm' : rule === 'attention' ? 'fa' : 'memory', inputs, outputs, backward, x, y, weightShape, inputLanes });
+const operator = (id: string, label: string, rule: RuleKey, inputs: string[], outputs: string[], backward: string[], x: number, y: number, weightShape?: number[], inputLanes?: Record<string, number>, inputRoutes?: Operator['inputRoutes']): Operator =>
+  ({ id, label, rule, category: rule === 'linear' ? 'gemm' : rule === 'attention' ? 'fa' : 'memory', inputs, outputs, backward, x, y, weightShape, inputLanes, inputRoutes });
 
 export const lingbot: Model = {
   id: 'lingbot-video-moe', name: 'LingBot Video · MoE',
@@ -70,14 +70,14 @@ export const lingbot: Model = {
     operator('n2', operatorLabels.n2,'norm',['residual'],['norm2'],['residual'],520,1000),
     operator('m2', operatorLabels.m2,'modulate',['norm2'],['mod2'],['norm2'],520,1100),
     // Router computes linear and sigmoid in FP32. Cast backward needs no values.
-    operator('castRouter','cast_fp32','cast',['mod2'],['routerInput'],[],170,1300),
+    operator('castRouter','cast_fp32','cast',['mod2'],['routerInput'],[],170,1300,undefined,undefined,{mod2:[[520,1160],[520,1180],[170,1180],[170,1284]]}),
     operator('router','router_gemm','linear',['routerInput'],['logits'],['routerInput'],170,1400,[E,H]),
     operator('sigmoid','sigmoid','sigmoid',['logits'],['scores'],['scores'],170,1500),
     // Composite gather + normalize + scale (2.5). Indices/bias are external metadata.
     // Choice: 4 groups, top 2 groups, top 8 experts. Gradients use bias-free sigmoid scores.
     operator('route','group_topk_norm','route',['scores'],['weights'],['scores'],170,1600),
     // Weights encode the routing decision for replay; dispatch backward needs indices only.
-    operator('dispatch','dispatch','dispatch',['mod2','weights'],['dispatch'],[],520,1700,undefined,{mod2:350,weights:320}),
+    operator('dispatch','dispatch','dispatch',['mod2','weights'],['dispatch'],[],520,1700,undefined,undefined,{mod2:[[520,1160],[520,1684]],weights:[[170,1660],[170,1675],[400,1675],[400,1700],[458,1700]]}),
     // Fused SwiGLU abstraction, matching H3: backward retains gate/up,
     // reconstructing SiLU(gate) rather than retaining its separate output.
     operator('w1','expert_gate_proj','linear',['dispatch'],['gate'],['dispatch'],440,1800,[E,I,H]),
@@ -87,13 +87,13 @@ export const lingbot: Model = {
     operator('castExpert','cast_fp32','cast',['expertOut'],['expertFloat'],[],520,2200),
     // Weighted scatter uses FP32 expert values for d(route weights); normalized
     // BF16 weights for d(expert values). Cast result to BF16; indices excluded.
-    operator('combine','combine','combine',['expertFloat','weights'],['routed'],['expertFloat','weights'],520,2400,undefined,{weights:310}),
-    operator('sharedW1','shared_gate_proj','linear',['mod2'],['sharedGate'],['mod2'],830,1300,[I*c.n_shared_experts,H],{mod2:730}),
-    operator('sharedW3','shared_up_proj','linear',['mod2'],['sharedUp'],['mod2'],990,1300,[I*c.n_shared_experts,H],{mod2:1110}),
+    operator('combine','combine','combine',['expertFloat','weights'],['routed'],['expertFloat','weights'],520,2400,undefined,undefined,{weights:[[170,1660],[170,1675],[320,1675],[320,2400],[458,2400]]}),
+    operator('sharedW1','shared_gate_proj','linear',['mod2'],['sharedGate'],['mod2'],830,1300,[I*c.n_shared_experts,H],undefined,{mod2:[[520,1160],[520,1180],[910,1180],[910,1260],[830,1260],[830,1284]]}),
+    operator('sharedW3','shared_up_proj','linear',['mod2'],['sharedUp'],['mod2'],990,1300,[I*c.n_shared_experts,H],undefined,{mod2:[[520,1160],[520,1180],[910,1180],[910,1260],[990,1260],[990,1284]]}),
     operator('sharedSw','swiglu','swiglu',['sharedGate','sharedUp'],['sharedProduct'],['sharedGate','sharedUp'],910,1450),
     operator('sharedW2','shared_down_proj','linear',['sharedProduct'],['sharedOut'],['sharedProduct'],910,1600,[H,I*c.n_shared_experts]),
     // Addition backward needs only upstream gradients, not either input's value.
-    operator('add','add','add',['routed','sharedOut'],['moeOut'],[],520,2500),
+    operator('add','add','add',['routed','sharedOut'],['moeOut'],[],520,2500,undefined,undefined,{sharedOut:[[910,1660],[910,2500],[582,2500]]}),
     operator('postF','post_ffn_rmsnorm','norm',['moeOut'],['postFFN'],['moeOut'],520,2600),
     operator('resF', operatorLabels.residual,'residual',['residual','postFFN'],['output'],['postFFN'],520,2750,undefined,{residual:1130}),
   ],

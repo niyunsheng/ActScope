@@ -668,8 +668,8 @@
 }
 .ag-graph-region > span {
   display: block;
-  text-align: center;
-  margin-top: 18px;
+  text-align: left;
+  margin: 18px 16px 0;
   color: #728094;
   font-size: 14px;
   font-weight: 600;
