@@ -34,8 +34,8 @@ export const h3: Model = {
     t('qr', tensorLabels.qr, 90, 540, q, 'T × Nq × D'), t('kr', tensorLabels.kr, 250, 540, kv, 'T × Nkv × D'),
     t('attention', tensorLabels.attention, 250, 650, q, 'T × Nq × D'), t('out', tensorLabels.out, 250, 750),
     t('residual', tensorLabels.residual, 250, 850), t('norm2', tensorLabels.norm2, 250, 950), t('mod2', tensorLabels.mod2, 250, 1050),
-    t('gate', 'Gate', 200, 1150, ff, 'T × I'), t('up', 'Up', 340, 1150, ff, 'T × I'),
-    t('swiglu', 'SwiGLU output', 250, 1250, ff, 'T × I'), t('fc2', 'FC2 output', 250, 1350), t('output', tensorLabels.output, 250, 1450),
+    t('gate', 'Gate', 170, 1150, ff, 'T × I'), t('up', 'Up', 330, 1150, ff, 'T × I'),
+    t('swiglu', 'SwiGLU output', 250, 1250, ff, 'T × I'), t('fc2', 'Down projection output', 250, 1350), t('output', tensorLabels.output, 250, 1450),
   ],
   operators: [
     // RMSNorm type verified in Diffusers transformer_minimax_h3.py at
@@ -68,12 +68,14 @@ export const h3: Model = {
     op('n2', operatorLabels.n2, 'norm', ['residual'], ['norm2'], ['residual'], 250, 900),
     // FFN modulation backward needs norm2 for scale gradient; external scale is also required.
     op('m2', operatorLabels.m2, 'modulate', ['norm2'], ['mod2'], ['norm2'], 250, 1000),
-    // Packed FC1 backward needs mod2; gate/up output slices are not dependencies of FC1.backward.
-    op('f1', 'fc1_gate_up', 'linear', ['mod2'], ['gate', 'up'], ['mod2'], 250, 1100),
+    // Logical views of the packed FC1: both projections share mod2 storage.
+    // Gate/up are disjoint output slices; splitting the graph does not add activation bytes.
+    op('gate_proj', 'gate_proj', 'linear', ['mod2'], ['gate'], ['mod2'], 170, 1100),
+    op('up_proj', 'up_proj', 'linear', ['mod2'], ['up'], ['mod2'], 330, 1100),
     // Fused SwiGLU backward needs gate/up; reconstruct SiLU(gate) inside backward, not cached Y.
     op('sw', 'swiglu', 'swiglu', ['gate', 'up'], ['swiglu'], ['gate', 'up'], 250, 1200),
     // FC2 backward needs swiglu for dW; weights are external and its output is not required.
-    op('f2', 'fc2', 'linear', ['swiglu'], ['fc2'], ['swiglu'], 250, 1300),
+    op('f2', 'down_proj', 'linear', ['swiglu'], ['fc2'], ['swiglu'], 250, 1300),
     // Y = residual + gate*fc2. Backward needs fc2 for dgate, not residual; replay needs both.
     op('r2', operatorLabels.residual, 'residual', ['residual', 'fc2'], ['output'], ['fc2'], 250, 1400),
   ],

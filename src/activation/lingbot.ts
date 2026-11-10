@@ -74,11 +74,11 @@ export const lingbot: Model = {
     // Weights encode the routing decision for replay; dispatch backward needs indices only.
     operator('dispatch','dispatch','dispatch',['mod2','weights'],['dispatch'],[],260,1600,undefined,{mod2:80}),
     // Eager expert path: separate SiLU and multiply, not a fused SwiGLU backward.
-    operator('w1','expert_w1','linear',['dispatch'],['gate'],['dispatch'],160,1700,[E,I,H]),
-    operator('w3','expert_w3','linear',['dispatch'],['up'],['dispatch'],360,1700,[E,I,H]),
+    operator('w1','expert_gate_proj','linear',['dispatch'],['gate'],['dispatch'],160,1700,[E,I,H]),
+    operator('w3','expert_up_proj','linear',['dispatch'],['up'],['dispatch'],360,1700,[E,I,H]),
     operator('silu','silu','silu',['gate'],['silu'],['gate'],160,1800),
     operator('mul','multiply','multiply',['silu','up'],['product'],['silu','up'],260,1900),
-    operator('w2','expert_w2','linear',['product'],['expertOut'],['product'],260,2000,[E,H,I]),
+    operator('w2','expert_down_proj','linear',['product'],['expertOut'],['product'],260,2000,[E,H,I]),
     operator('castExpert','cast_fp32','cast',['expertOut'],['expertFloat'],[],260,2100),
     // Weighted scatter uses FP32 expert values for d(route weights); normalized
     // BF16 weights for d(expert values). Cast result to BF16; indices excluded.

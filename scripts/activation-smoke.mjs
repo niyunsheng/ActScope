@@ -15,7 +15,7 @@ try {
   assert.equal(await page.getByLabel('Activation dtype',{exact:true}).count(),0);
   assert.doesNotMatch(await page.locator('body').innerText(), /\p{Script=Han}/u);
   assert.equal(await page.locator('.ag-graph-heading .ag-legend').count(),1);
-  for (const [id, expected] of Object.entries({qp:'[7168, 5376]',kp:'[7168, 5376]',vp:'[7168, 5376]',o:'[5376, 7168]',f1:'[28672, 5376]',f2:'[5376, 14336]'})) {
+  for (const [id, expected] of Object.entries({qp:'[7168, 5376]',kp:'[7168, 5376]',vp:'[7168, 5376]',o:'[5376, 7168]',gate_proj:'[14336, 5376]',up_proj:'[14336, 5376]',f2:'[5376, 14336]'})) {
     await page.locator(`[data-operator="${id}"]`).hover();
     assert.equal(await page.getByTestId('weight-shape').innerText(),expected);
   }
@@ -60,7 +60,7 @@ try {
   assert.equal(await page.locator('table, .ag-diagram svg, .ag-ledger, .ag-op-inspector').count(),0);
   const colors=await page.locator('.ag-operator').evaluateAll(ns=>[...new Set(ns.map(n=>getComputedStyle(n).backgroundColor))]);
   assert.equal(colors.length,2);
-  assert.equal(await page.locator('.ag-operator.compute-bound').count(),7);
+  assert.equal(await page.locator('.ag-operator.compute-bound').count(),8);
   assert.equal(await page.locator('.ag-operator.memory-bound').count(),11);
   const viewport=page.getByLabel('Zoomable graph',{exact:true});
   await viewport.scrollIntoViewIfNeeded();
