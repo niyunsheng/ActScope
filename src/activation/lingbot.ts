@@ -1,3 +1,4 @@
+import { operatorLabels, tensorLabels } from './labels';
 import type { Model, Operator, Parameters, RuleKey, Tensor } from './model';
 import { lingbotConfig as c } from './lingbot-config';
 
@@ -23,13 +24,13 @@ export const lingbot: Model = {
   note: 'T = video + text tokens. Logical activation estimate; excludes routing indices, expert padding, norm/FA auxiliary state and conditioning.',
   boundary: ['input'],
   tensors: [
-    tensor('input','Block input',360,35), tensor('norm1','Attention norm',360,135), tensor('mod1','Attention input',360,235),
-    tensor('q','Q',160,340,attention), tensor('k','K',360,340,attention), tensor('v','V',560,340,attention),
-    tensor('qn','Q norm',160,440,attention), tensor('kn','K norm',360,440,attention),
-    tensor('qr','Q RoPE',160,540,attention), tensor('kr','K RoPE',360,540,attention),
-    tensor('attention','FA output',360,650,attention), tensor('out','Attention projection',360,750),
-    tensor('postAttn','Post-attention norm',360,850), tensor('residual','Attention residual',360,950),
-    tensor('norm2','FFN norm',360,1050), tensor('mod2','MoE input',360,1150),
+    tensor('input', tensorLabels.input,360,35), tensor('norm1', tensorLabels.norm1,360,135), tensor('mod1', tensorLabels.mod1,360,235),
+    tensor('q', tensorLabels.q,200,340,attention), tensor('k', tensorLabels.k,360,340,attention), tensor('v', tensorLabels.v,520,340,attention),
+    tensor('qn', tensorLabels.qn,200,440,attention), tensor('kn', tensorLabels.kn,360,440,attention),
+    tensor('qr', tensorLabels.qr,200,540,attention), tensor('kr', tensorLabels.kr,360,540,attention),
+    tensor('attention', tensorLabels.attention,360,650,attention), tensor('out', tensorLabels.out,360,750),
+    tensor('postAttn','Post-attention norm',360,850), tensor('residual', tensorLabels.residual,360,950),
+    tensor('norm2', tensorLabels.norm2,360,1050), tensor('mod2', tensorLabels.mod2,360,1150),
     tensor('routerInput','Router input FP32',260,1250,hidden,'FP32'),
     tensor('logits','Router logits',260,1350,p=>[p.sequence,E],'FP32'),
     tensor('scores','Sigmoid scores',260,1450,p=>[p.sequence,E],'FP32'),
@@ -43,26 +44,26 @@ export const lingbot: Model = {
     tensor('sharedGate','Shared gate',710,1750,sharedFF), tensor('sharedUp','Shared up',910,1750,sharedFF),
     tensor('sharedSilu','Shared SiLU',710,1850,sharedFF), tensor('sharedProduct','Shared product',810,1950,sharedFF),
     tensor('sharedOut','Shared output',810,2050),
-    tensor('moeOut','MoE output',500,2450), tensor('postFFN','Post-FFN norm',500,2550), tensor('output','Block output',500,2800),
+    tensor('moeOut','MoE output',500,2450), tensor('postFFN','Post-FFN norm',500,2550), tensor('output', tensorLabels.output,500,2800),
   ],
   operators: [
     // Fused RMSNorm abstraction: save X; internal FP32 statistics/workspaces excluded.
-    operator('n1','RMSNorm','norm',['input'],['norm1'],['input'],360,85),
-    operator('m1','modulate','modulate',['norm1'],['mod1'],['norm1'],360,185),
-    operator('qp','q_proj','linear',['mod1'],['q'],['mod1'],160,285,[H,H]),
-    operator('kp','k_proj','linear',['mod1'],['k'],['mod1'],360,285,[H,H]),
-    operator('vp','v_proj','linear',['mod1'],['v'],['mod1'],560,285,[H,H]),
-    operator('qn','Q RMSNorm','norm',['q'],['qn'],['q'],160,390),
-    operator('kn','K RMSNorm','norm',['k'],['kn'],['k'],360,390),
-    operator('qr','Q RoPE','rope',['qn'],['qr'],[],160,490),
-    operator('kr','K RoPE','rope',['kn'],['kr'],[],360,490),
+    operator('n1', operatorLabels.n1,'norm',['input'],['norm1'],['input'],360,85),
+    operator('m1', operatorLabels.m1,'modulate',['norm1'],['mod1'],['norm1'],360,185),
+    operator('qp', operatorLabels.qp,'linear',['mod1'],['q'],['mod1'],200,285,[H,H]),
+    operator('kp', operatorLabels.kp,'linear',['mod1'],['k'],['mod1'],360,285,[H,H]),
+    operator('vp', operatorLabels.vp,'linear',['mod1'],['v'],['mod1'],520,285,[H,H]),
+    operator('qn', operatorLabels.qn,'norm',['q'],['qn'],['q'],200,390),
+    operator('kn', operatorLabels.kn,'norm',['k'],['kn'],['k'],360,390),
+    operator('qr', operatorLabels.qr,'rope',['qn'],['qr'],[],200,490),
+    operator('kr', operatorLabels.kr,'rope',['kn'],['kr'],[],360,490),
     // FA backend assumption, dropout=0. Q/K/V/O retained; LSE is excluded.
-    operator('fa','FA','attention',['qr','kr','v'],['attention'],['qr','kr','v','attention'],360,595),
-    operator('o','o_proj','linear',['attention'],['out'],['attention'],360,700,[H,H]),
+    operator('fa', operatorLabels.fa,'attention',['qr','kr','v'],['attention'],['qr','kr','v','attention'],360,595),
+    operator('o', operatorLabels.o,'linear',['attention'],['out'],['attention'],360,700,[H,H]),
     operator('postA','post-attn RMSNorm','norm',['out'],['postAttn'],['out'],360,800),
-    operator('resA','gated residual','residual',['input','postAttn'],['residual'],['postAttn'],360,900,undefined,{input:1040}),
-    operator('n2','RMSNorm','norm',['residual'],['norm2'],['residual'],360,1000),
-    operator('m2','modulate','modulate',['norm2'],['mod2'],['norm2'],360,1100),
+    operator('resA', operatorLabels.residual,'residual',['input','postAttn'],['residual'],['postAttn'],360,900,undefined,{input:1040}),
+    operator('n2', operatorLabels.n2,'norm',['residual'],['norm2'],['residual'],360,1000),
+    operator('m2', operatorLabels.m2,'modulate',['norm2'],['mod2'],['norm2'],360,1100),
     // Router computes linear and sigmoid in FP32. Cast backward needs no values.
     operator('castRouter','cast FP32','cast',['mod2'],['routerInput'],[],260,1200),
     operator('router','router GEMM','linear',['routerInput'],['logits'],['routerInput'],260,1300,[E,H]),
@@ -90,6 +91,6 @@ export const lingbot: Model = {
     // Addition backward needs only upstream gradients, not either input's value.
     operator('add','routed + shared','add',['routed','sharedOut'],['moeOut'],[],500,2400),
     operator('postF','post-FFN RMSNorm','norm',['moeOut'],['postFFN'],['moeOut'],500,2500),
-    operator('resF','gated residual','residual',['residual','postFFN'],['output'],['postFFN'],500,2750,undefined,{residual:1010}),
+    operator('resF', operatorLabels.residual,'residual',['residual','postFFN'],['output'],['postFFN'],500,2750,undefined,{residual:1010}),
   ],
 };

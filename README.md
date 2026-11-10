@@ -24,7 +24,7 @@ Open the [local app](http://127.0.0.1:5190/).
 
 Estimates **main activations retained for backward** for one layer on one GPU without sharding. This is not peak GPU memory. Parameters, gradients, optimizer states, conditioning branches, norm statistics, FA LSE, and temporary workspaces are excluded.
 
-H3 follows a user-provided configuration and diagram. Assumptions include standard MHA, fixed RoPE, fused SwiGLU, zero attention dropout, and trainable modulation and residual gates. See [model.ts](src/activation/model.ts) for operator dependencies and [h3-config.ts](src/activation/h3-config.ts) for dimensions. Estimates have not been validated against the official H3 implementation or GPU measurements.
+H3 follows a user-provided configuration and diagram; pre-norm and Q/K RMSNorm types are verified against the [Diffusers implementation](https://github.com/huggingface/diffusers/blob/33b3d3704242a37be8cc6be010df97aeef9dc643/src/diffusers/models/transformers/transformer_minimax_h3.py). Assumptions include standard MHA, fixed RoPE, fused SwiGLU, zero attention dropout, and trainable modulation and residual gates. See [model.ts](src/activation/model.ts) for operator dependencies and [h3-config.ts](src/activation/h3-config.ts) for dimensions. Activation totals have not been validated against a runtime saved-tensor trace or GPU measurements.
 
 LingBot uses the [official implementation and checkpoint config](docs/lingbot-video.md): 128 routed experts, top-8 routing, and one shared expert. T includes video and text tokens. Its source references, mixed-precision accounting and training assumptions are documented there.
 
