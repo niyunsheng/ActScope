@@ -78,7 +78,7 @@ export const lingbot: Model = {
     // Discrete choice has no gradient. Gather/normalization needs the selected
     // indices plus scores; replay assumes deterministic selection, including ties.
     operator('topk','group_limited_topk','route',['scores'],['indices'],[],170,1600),
-    operator('route','gather_norm_scale','route',['scores','indices'],['weights'],['scores','indices'],170,1700,undefined,undefined,{scores:[[170,1560],[90,1560],[90,1700],[108,1700]]}),
+    operator('route','gather_norm_scale','route',['scores','indices'],['weights'],['scores','indices'],170,1700,undefined,undefined,{scores:[[170,1560],[170,1575],[90,1575],[90,1700],[108,1700]]}),
     // Logical compute dependencies: weight transport/reordering is implicit.
     // Dispatch shows token routing only; the weight value flows to its consumer.
     operator('dispatch','dispatch','dispatch',['mod2','indices'],['dispatch','handle'],['handle'],520,1850,undefined,undefined,{mod2:[[520,1160],[520,1834]],indices:[[170,1660],[310,1660],[310,1840],[458,1840]]}),
