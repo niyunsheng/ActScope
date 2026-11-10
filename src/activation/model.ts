@@ -7,7 +7,7 @@ export type Policy = Record<Category, boolean>;
 export interface Parameters { sequence: number; hidden: number; intermediate: number; heads: number; kvHeads: number; headDim: number; bytes: number }
 export interface Tensor { dtype?: 'BF16' | 'FP32'; id: string; label: string; shape: (p: Parameters) => number[]; formula: string; x: number; y: number }
 export interface Operator { weightShape?: number[]; inputLanes?: Record<string, number>; rule: RuleKey; id: string; label: string; category: Category; inputs: string[]; outputs: string[]; backward: string[]; x: number; y: number }
-export interface Model { layout?: { width: number; height: number }; facts?: { label: string; value: string | number }[]; note?: string; id: string; name: string; tensors: Tensor[]; operators: Operator[]; boundary: string[]; defaults: Parameters }
+export interface Model { regions?: { label: string; x: number; y: number; width: number; height: number }[]; layout?: { width: number; height: number }; facts?: { label: string; value: string | number }[]; note?: string; id: string; name: string; tensors: Tensor[]; operators: Operator[]; boundary: string[]; defaults: Parameters }
 const hidden = (p: Parameters) => [p.sequence, p.hidden];
 const q = (p: Parameters) => [p.sequence, p.heads, p.headDim];
 const kv = (p: Parameters) => [p.sequence, p.kvHeads, p.headDim];

@@ -19,7 +19,7 @@ export function drawConnections(canvas: HTMLCanvasElement, model: Model, selecte
         const t = ts.get(id)!;
         const lane = op.inputLanes?.[id] ?? (op.id === 'r1' && id === 'input' ? 492 : op.id === 'r2' && id === 'residual' ? 470 : undefined);
         if (lane !== undefined) {
-          arrow([[t.x + 9, t.y], [lane, t.y], [lane, op.y], [op.x + 65, op.y]]);
+          arrow([[t.x + (lane < t.x ? -9 : 9), t.y], [lane, t.y], [lane, op.y], [op.x + (lane < op.x ? -65 : 65), op.y]]);
         } else {
           const y = op.y - 26;
           arrow([[t.x, t.y + 10], [t.x, y], [op.x, y], [op.x, op.y - 16]]);

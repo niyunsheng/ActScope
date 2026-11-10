@@ -658,3 +658,19 @@
 }
 
 .ag-model-note { color: var(--muted); font-size: 11px; line-height: 1.5; }
+
+.ag-graph-region {
+  position: absolute;
+  border: 1px solid #dce4ed;
+  border-radius: 12px;
+  background: #f3f6fa80;
+  pointer-events: none;
+}
+.ag-graph-region > span {
+  display: block;
+  text-align: center;
+  margin-top: 18px;
+  color: #728094;
+  font-size: 14px;
+  font-weight: 600;
+}
