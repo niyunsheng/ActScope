@@ -1,9 +1,9 @@
 // Shared display names keep equivalent modules consistent across model graphs.
 export const operatorLabels = {
-  n1: 'RMSNorm', n2: 'RMSNorm', m1: 'modulate', m2: 'modulate',
+  n1: 'rmsnorm', n2: 'rmsnorm', m1: 'modulate', m2: 'modulate',
   qp: 'q_proj', kp: 'k_proj', vp: 'v_proj', o: 'o_proj',
-  qn: 'Q RMSNorm', kn: 'K RMSNorm', qr: 'q_rope', kr: 'k_rope',
-  fa: 'FA', residual: 'gated_residual',
+  qn: 'q_rmsnorm', kn: 'k_rmsnorm', qr: 'q_rope', kr: 'k_rope',
+  fa: 'flash_attn', residual: 'gated_residual',
 } as const;
 
 export const tensorLabels = {

@@ -69,7 +69,7 @@ export const h3: Model = {
     // FFN modulation backward needs norm2 for scale gradient; external scale is also required.
     op('m2', operatorLabels.m2, 'modulate', ['norm2'], ['mod2'], ['norm2'], 250, 1000),
     // Packed FC1 backward needs mod2; gate/up output slices are not dependencies of FC1.backward.
-    op('f1', 'fc1 · gate + up', 'linear', ['mod2'], ['gate', 'up'], ['mod2'], 250, 1100),
+    op('f1', 'fc1_gate_up', 'linear', ['mod2'], ['gate', 'up'], ['mod2'], 250, 1100),
     // Fused SwiGLU backward needs gate/up; reconstruct SiLU(gate) inside backward, not cached Y.
     op('sw', 'swiglu', 'swiglu', ['gate', 'up'], ['swiglu'], ['gate', 'up'], 250, 1200),
     // FC2 backward needs swiglu for dW; weights are external and its output is not required.

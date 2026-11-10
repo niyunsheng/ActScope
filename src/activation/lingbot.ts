@@ -60,37 +60,37 @@ export const lingbot: Model = {
     // FA backend assumption, dropout=0. Q/K/V/O retained; LSE is excluded.
     operator('fa', operatorLabels.fa,'attention',['qr','kr','v'],['attention'],['qr','kr','v','attention'],360,595),
     operator('o', operatorLabels.o,'linear',['attention'],['out'],['attention'],360,700,[H,H]),
-    operator('postA','post-attn RMSNorm','norm',['out'],['postAttn'],['out'],360,800),
+    operator('postA','post_attn_rmsnorm','norm',['out'],['postAttn'],['out'],360,800),
     operator('resA', operatorLabels.residual,'residual',['input','postAttn'],['residual'],['postAttn'],360,900,undefined,{input:1040}),
     operator('n2', operatorLabels.n2,'norm',['residual'],['norm2'],['residual'],360,1000),
     operator('m2', operatorLabels.m2,'modulate',['norm2'],['mod2'],['norm2'],360,1100),
     // Router computes linear and sigmoid in FP32. Cast backward needs no values.
-    operator('castRouter','cast FP32','cast',['mod2'],['routerInput'],[],260,1200),
-    operator('router','router GEMM','linear',['routerInput'],['logits'],['routerInput'],260,1300,[E,H]),
+    operator('castRouter','cast_fp32','cast',['mod2'],['routerInput'],[],260,1200),
+    operator('router','router_gemm','linear',['routerInput'],['logits'],['routerInput'],260,1300,[E,H]),
     operator('sigmoid','sigmoid','sigmoid',['logits'],['scores'],['scores'],260,1400),
     // Composite gather + normalize + scale (2.5). Indices/bias are external metadata.
     // Choice: 4 groups, top 2 groups, top 8 experts. Gradients use bias-free sigmoid scores.
-    operator('route','group top-k / norm','route',['scores'],['weights'],['scores'],260,1500),
+    operator('route','group_topk_norm','route',['scores'],['weights'],['scores'],260,1500),
     // Weights encode the routing decision for replay; dispatch backward needs indices only.
     operator('dispatch','dispatch','dispatch',['mod2','weights'],['dispatch'],[],260,1600,undefined,{mod2:80}),
     // Eager expert path: separate SiLU and multiply, not a fused SwiGLU backward.
-    operator('w1','expert w1','linear',['dispatch'],['gate'],['dispatch'],160,1700,[E,I,H]),
-    operator('w3','expert w3','linear',['dispatch'],['up'],['dispatch'],360,1700,[E,I,H]),
-    operator('silu','SiLU','silu',['gate'],['silu'],['gate'],160,1800),
+    operator('w1','expert_w1','linear',['dispatch'],['gate'],['dispatch'],160,1700,[E,I,H]),
+    operator('w3','expert_w3','linear',['dispatch'],['up'],['dispatch'],360,1700,[E,I,H]),
+    operator('silu','silu','silu',['gate'],['silu'],['gate'],160,1800),
     operator('mul','multiply','multiply',['silu','up'],['product'],['silu','up'],260,1900),
-    operator('w2','expert w2','linear',['product'],['expertOut'],['product'],260,2000,[E,H,I]),
-    operator('castExpert','cast FP32','cast',['expertOut'],['expertFloat'],[],260,2100),
+    operator('w2','expert_w2','linear',['product'],['expertOut'],['product'],260,2000,[E,H,I]),
+    operator('castExpert','cast_fp32','cast',['expertOut'],['expertFloat'],[],260,2100),
     // Weighted scatter uses FP32 expert values for d(route weights); normalized
     // BF16 weights for d(expert values). Cast result to BF16; indices excluded.
-    operator('combine','weighted sum','combine',['expertFloat','weights'],['routed'],['expertFloat','weights'],260,2300,undefined,{weights:60}),
-    operator('sharedW1','shared gate_proj','linear',['mod2'],['sharedGate'],['mod2'],710,1700,[I*c.n_shared_experts,H],{mod2:650}),
-    operator('sharedW3','shared up_proj','linear',['mod2'],['sharedUp'],['mod2'],910,1700,[I*c.n_shared_experts,H],{mod2:1070}),
-    operator('sharedSilu','SiLU','silu',['sharedGate'],['sharedSilu'],['sharedGate'],710,1800),
+    operator('combine','weighted_sum','combine',['expertFloat','weights'],['routed'],['expertFloat','weights'],260,2300,undefined,{weights:60}),
+    operator('sharedW1','shared_gate_proj','linear',['mod2'],['sharedGate'],['mod2'],710,1700,[I*c.n_shared_experts,H],{mod2:650}),
+    operator('sharedW3','shared_up_proj','linear',['mod2'],['sharedUp'],['mod2'],910,1700,[I*c.n_shared_experts,H],{mod2:1070}),
+    operator('sharedSilu','silu','silu',['sharedGate'],['sharedSilu'],['sharedGate'],710,1800),
     operator('sharedMul','multiply','multiply',['sharedSilu','sharedUp'],['sharedProduct'],['sharedSilu','sharedUp'],810,1900),
-    operator('sharedW2','shared down_proj','linear',['sharedProduct'],['sharedOut'],['sharedProduct'],810,2000,[H,I*c.n_shared_experts]),
+    operator('sharedW2','shared_down_proj','linear',['sharedProduct'],['sharedOut'],['sharedProduct'],810,2000,[H,I*c.n_shared_experts]),
     // Addition backward needs only upstream gradients, not either input's value.
-    operator('add','routed + shared','add',['routed','sharedOut'],['moeOut'],[],500,2400),
-    operator('postF','post-FFN RMSNorm','norm',['moeOut'],['postFFN'],['moeOut'],500,2500),
+    operator('add','add','add',['routed','sharedOut'],['moeOut'],[],500,2400),
+    operator('postF','post_ffn_rmsnorm','norm',['moeOut'],['postFFN'],['moeOut'],500,2500),
     operator('resF', operatorLabels.residual,'residual',['residual','postFFN'],['output'],['postFFN'],500,2750,undefined,{residual:1010}),
   ],
 };
