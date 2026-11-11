@@ -4,6 +4,7 @@ import argparse
 import gc
 import hashlib
 import importlib.metadata
+import inspect
 import json
 import platform
 import statistics
@@ -14,6 +15,23 @@ from pathlib import Path
 import torch
 import torch.nn.functional as F
 import torch._functorch.config
+
+CUSTOMER_FA_VERSION = "0.0.0+h3fl2va.bwdv2.gb011817.pkg1"
+
+
+def fa_provenance(expected_version):
+    version = importlib.metadata.version("flash-attn-4")
+    if version != expected_version:
+        raise RuntimeError(f"Expected FA4 {expected_version}, found {version}; refusing substitution")
+    import flash_attn.cute.interface as interface
+    root = Path(inspect.getfile(interface)).resolve().parent
+    files = {str(p.relative_to(root)): hashlib.sha256(p.read_bytes()).hexdigest()
+             for p in sorted(root.rglob("*.py"))}
+    digest = hashlib.sha256("".join(f"{name}:{sha}\n" for name, sha in files.items()).encode()).hexdigest()
+    return {"version": version, "module_path": str(root / "interface.py"),
+            "python_source_tree_sha256": digest, "python_source_file_count": len(files),
+            "entry_files_sha256": {name: sha for name, sha in files.items()
+                                   if name in ("interface.py", "flash_fwd_sm120.py", "flash_bwd_sm120.py")}}
 
 
 def rms(x):
@@ -52,9 +70,16 @@ def main():
     parser.add_argument("--warmup", type=int, default=5)
     parser.add_argument("--samples", type=int, default=7)
     parser.add_argument("--iterations", type=int, default=5)
+    parser.add_argument("--expected-fa-version", default=CUSTOMER_FA_VERSION)
+    parser.add_argument("--image-ref", required=True)
+    parser.add_argument("--image-id")
+    parser.add_argument("--image-digest")
+    parser.add_argument("--gpu-query-id", default="0")
+    parser.add_argument("--expected-gpu-uuid")
     args = parser.parse_args()
     if min(args.tokens, args.warmup, args.samples, args.iterations) < 1:
         parser.error("counts must be positive")
+    provenance = fa_provenance(args.expected_fa_version)
     if not torch.cuda.is_available():
         raise RuntimeError("A CUDA GPU is required; no CPU fallback")
     torch.manual_seed(20261110)
@@ -63,11 +88,17 @@ def main():
     # buffers would invalidate retain_graph=True after the first iteration.
     torch._functorch.config.donated_buffer = False
     device = torch.cuda.get_device_properties(0)
+    if args.expected_gpu_uuid and str(device.uuid).removeprefix("GPU-") != args.expected_gpu_uuid.removeprefix("GPU-"):
+        raise RuntimeError("CUDA selected a different GPU from the one monitored by nvidia-smi")
     report = {
-        "schema_version": 1,
+        "schema_version": 2,
         "started_at_utc": datetime.now(timezone.utc).isoformat(),
         "script_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
         "environment": {
+            "container": {"image_ref": args.image_ref, "image_id": args.image_id,
+                          "image_digest": args.image_digest},
+            "fa4": provenance,
+            "gpu_selection_verified": bool(args.expected_gpu_uuid),
             "python": platform.python_version(), "torch": torch.__version__,
             "cuda_runtime": torch.version.cuda,
             "packages": {p: importlib.metadata.version(p) for p in
@@ -75,7 +106,8 @@ def main():
             "gpu_name": device.name, "compute_capability": [device.major, device.minor],
             "sm_count": device.multi_processor_count, "total_memory_bytes": device.total_memory,
             "nvidia_smi": subprocess.check_output([
-                "nvidia-smi", "--query-gpu=name,pci.device_id,driver_version,memory.total,power.limit",
+                "nvidia-smi", "-i", args.gpu_query_id,
+                "--query-gpu=name,pci.device_id,driver_version,memory.total,power.limit",
                 "--format=csv"], text=True).strip(),
         },
         "workload": {"model": "minimax-h3-dit", "tokens": args.tokens, "hidden": 5376,

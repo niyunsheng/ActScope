@@ -36,3 +36,4 @@ export const measuredRates = Object.fromEntries(
 ) as KernelRates;
 export const measurementWorkload = measurement.workload;
 export const measurementMethod = measurement.method;
+export const measurementEnvironment = measurement.environment;

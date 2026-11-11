@@ -11,6 +11,15 @@ describe('H3 measurement compatibility', () => {
   const flops = computeFlops(h3, params);
   const traffic = memoryTraffic(h3, params);
 
+  it('uses the customer image FA4 build with recorded source identity and verified GPU selection', () => {
+    expect(measurement.environment.fa4.version).toBe('0.0.0+h3fl2va.bwdv2.gb011817.pkg1');
+    expect(measurement.environment.container.image_ref).toBe('oppenheimli/aigc:share.h3.ofld.v3');
+    expect(measurement.environment.container.image_digest).toBe('oppenheimli/aigc@sha256:8594ffb9da1e05a1ef598270b45b28dba78f426468cbdb8be57ee5efc10df793');
+    expect(measurement.environment.fa4.entry_files_sha256['interface.py']).toBe('8a3ca80665b6099c0a5c1a55f67c227b8c762df403ace3ba931677e50b7295d8');
+    expect(measurement.environment.fa4.python_source_tree_sha256).toMatch(/^[0-9a-f]{64}$/);
+    expect(measurement.environment.gpu_selection_verified).toBe(true);
+  });
+
   it('covers the exact frontend GEMM, attention and logical memory work', () => {
     expect(measuredWork('gemm', true).work).toBe(flops.forwardGemm);
     expect(measuredWork('gemm', false).work).toBe(flops.backwardGemm);

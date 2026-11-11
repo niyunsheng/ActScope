@@ -1,4 +1,4 @@
-import { measuredGroups, measuredRates, measurementWorkload, measurementMethod } from './calibration';
+import { measuredGroups, measuredRates, measurementWorkload, measurementMethod, measurementEnvironment } from './calibration';
 import { referenceRates, type KernelRates } from './compute';
 
 export default function KernelMeasurements({ modelId, sequence, rates, onChange }: {
@@ -8,7 +8,8 @@ export default function KernelMeasurements({ modelId, sequence, rates, onChange 
   const selected = Object.entries(measuredRates).every(([key, value]) => rates[key as keyof KernelRates] === value);
   return <details className="ag-work-details ag-measurements">
     <summary>RTX PRO 5000 lab measurements · H3 / 33,630 tokens</summary>
-    <p>BF16 · FA4 · {measurementMethod.samples} samples after warmup · CUDA event timing. Lab device reports “NVIDIA Graphics Device”, 110 SMs, SM 12.0, about 72 GiB. Hardware peak values above are a separate specification reference.</p>
+    <p>BF16 · Customer FA4 · {measurementMethod.samples} samples after warmup · CUDA event timing. Lab device reports “NVIDIA Graphics Device”, 110 SMs, SM 12.0, about 72 GiB. Hardware peak values above are a separate specification reference.</p>
+    <p data-measurement-source>Customer image: {measurementEnvironment.container.image_ref}<br />FA4 build: {measurementEnvironment.fa4.version}</p>
     <table aria-label="Measured kernel throughput">
       <thead><tr><th>Probe</th><th>Forward</th><th>Backward</th><th>Unit</th></tr></thead>
       <tbody>{measuredGroups.map(group => <tr key={group.id}>

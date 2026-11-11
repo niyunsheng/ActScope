@@ -11,6 +11,9 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path
 
+# The host runner does not import torch; the child also enforces this version.
+CUSTOMER_FA_VERSION = "0.0.0+h3fl2va.bwdv2.gb011817.pkg1"
+
 
 def output(*args):
     return subprocess.check_output(args, text=True).strip()
@@ -21,6 +24,7 @@ def main():
     parser.add_argument("--container", required=True)
     parser.add_argument("--gpu", required=True)
     parser.add_argument("--directory", type=Path, required=True)
+    parser.add_argument("--expected-fa-version", default=CUSTOMER_FA_VERSION)
     args = parser.parse_args()
     args.directory.mkdir(parents=True, exist_ok=True)
 
@@ -31,12 +35,22 @@ def main():
 
     if processes():
         raise RuntimeError("Selected GPU already has compute processes; benchmark not started")
+    gpu_uuid = output("nvidia-smi", "-i", args.gpu, "--query-gpu=uuid", "--format=csv,noheader")
+    image_ref = output("docker", "inspect", args.container, "--format", "{{.Config.Image}}")
+    image_id = output("docker", "inspect", args.container, "--format", "{{.Image}}")
+    digests = json.loads(output("docker", "image", "inspect", image_id, "--format", "{{json .RepoDigests}}"))
+    image_args = ["--image-ref", image_ref, "--image-id", image_id, "--gpu-query-id", gpu_uuid,
+                  "--expected-fa-version", args.expected_fa_version, "--expected-gpu-uuid", gpu_uuid]
+    if digests:
+        image_args += ["--image-digest", digests[0]]
     telemetry = []
     with (args.directory / "run.log").open("w") as log:
         child = subprocess.Popen([
-            "docker", "exec", args.container, "python3", "-u", "/bench/benchmark-kernels.py",
+            "docker", "exec", "-e", f"CUDA_VISIBLE_DEVICES={gpu_uuid}", args.container,
+            "python3", "-u", "/bench/benchmark-kernels.py",
             "--warmup", "10", "--samples", "9", "--iterations", "10",
             "--output", "/bench/h3-33630.json",
+            *image_args,
         ], stdout=log, stderr=subprocess.STDOUT)
         try:
             while child.poll() is None:

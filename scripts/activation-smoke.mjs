@@ -51,6 +51,8 @@ try {
   assert.equal(await bandwidth.inputValue(),'672');
   const measuredDetails=page.getByText('RTX PRO 5000 lab measurements · H3 / 33,630 tokens',{exact:true});
   await measuredDetails.click();
+  assert.match(await page.locator('[data-measurement-source]').innerText(),/share\.h3\.ofld\.v3/);
+  assert.match(await page.locator('[data-measurement-source]').innerText(),/h3fl2va\.bwdv2\.gb011817\.pkg1/);
   const applyMeasured=page.getByRole('button',{name:'Use measured H3 rates',exact:true});
   assert.ok(await applyMeasured.isEnabled());
   assert.equal(await page.getByRole('table',{name:'Measured kernel throughput'}).locator('tbody tr').count(),3);
