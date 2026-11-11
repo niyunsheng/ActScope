@@ -1,3 +1,8 @@
+import HardwareTable from './HardwareTable';
+import { gpus, type Hardware } from './hardware';
+import { memoryTraffic } from './memoryTraffic';
+import KernelCosts from './KernelCosts';
+import { computeFlops, computeTimes, referenceRates } from './compute';
 import { useMemo, useState } from 'react';
 import { models } from './model';
 import type { Model } from './model';
@@ -11,14 +16,17 @@ const levels = [
   { label: 'Full recompute (memory-bound + GEMM + FA)', detail: 'Memory-bound + GEMM + FA', policy: { memory: true, gemm: true, fa: true } },
 ];
 export default function ActivationPage({ model }: { model: Model }) {
-  const [sequence, setSequence] = useState(model.defaults.sequence);
+  const [sequence, setSequence] = useState(model.id === 'minimax-h3-dit' ? 33630 : model.defaults.sequence);
   const params = useMemo(() => ({ ...model.defaults, sequence }), [model, sequence]);
   const [level, setLevel] = useState(0);
+  const [rates, setRates] = useState(referenceRates);
+  const [hardware, setHardware] = useState<Hardware>(gpus[0]);
   const data = useMemo(() => {
-    try { return { results: levels.map(item => analyze(model, params, item.policy)), error: null }; }
-    catch (e) { return { results: null, error: (e as Error).message }; }
+    try { return { results: levels.map(item => analyze(model, params, item.policy)), flops: computeFlops(model, params), traffic: memoryTraffic(model, params), error: null }; }
+    catch (e) { return { results: null, flops: undefined, traffic: undefined, error: (e as Error).message }; }
   }, [model, params]);
-  const { results, error } = data;
+  const { results, error, flops, traffic } = data;
+  const costs = levels.map(item => flops && traffic ? computeTimes(flops, rates, item.policy, traffic) : null);
   const result = results?.[level];
   return <main className="activation-page ag-single-layer">
     <header className="ag-header">
@@ -36,27 +44,48 @@ export default function ActivationPage({ model }: { model: Model }) {
       </a>
     </header>
     <div className="ag-main">
-      <section className="ag-parameter-block" aria-label="Model and single-layer parameters">
-        <div className="ag-fixed-parameters">
-          <label className="ag-sequence-field">Token count · T<input aria-label="Token count · T" type="number" min={1} step={1} value={sequence || ''} onChange={e => setSequence(Number(e.target.value))} /></label>
-          <div><span>Hidden size</span><strong>{params.hidden}</strong></div>
-          <div><span>{model.intermediateLabel ?? 'FFN intermediate'}</span><strong>{params.intermediate}</strong></div>
-          <div><span>Attention heads</span><strong>{params.heads}</strong></div>
-          <div><span>Head dimension</span><strong>{params.headDim}</strong></div>
-          <div><span>Q / K / V width</span><strong>{params.heads * params.headDim}</strong></div>
-          <div><span>Activation dtype</span><strong>{model.activationDtype ?? 'BF16'}</strong></div>
-          {model.facts?.map(fact => <div key={fact.label}><span>{fact.label}</span><strong>{fact.value}</strong></div>)}
+      <div className="ag-cost-panels">
+        <section className="ag-parameter-block ag-kernel-cost" aria-label="Model and single-layer parameters">
+          <h2>Model config</h2>
+          <table className="ag-config-table">
+            <thead><tr><th>Parameter</th><th>Value</th></tr></thead>
+            <tbody>
+              <tr><th scope="row">Token count · T</th><td><input aria-label="Token count · T" type="number" min={1} step={1} value={sequence || ''} onChange={e => setSequence(Number(e.target.value))} /></td></tr>
+              {[
+                { label: 'Hidden size', value: params.hidden },
+                { label: model.intermediateLabel ?? 'FFN intermediate', value: params.intermediate },
+                { label: 'Attention heads', value: params.heads },
+                { label: 'Head dimension', value: params.headDim },
+                { label: 'Q / K / V width', value: params.heads * params.headDim },
+                { label: 'Activation dtype', value: model.activationDtype ?? 'BF16' },
+                ...(model.facts ?? []),
+              ].map(fact => <tr key={fact.label}><th scope="row">{fact.label}</th><td>{fact.value}</td></tr>)}
+            </tbody>
+          </table>
+        </section>
+        <div className="ag-performance-panels">
+          <HardwareTable hardware={hardware} onChange={setHardware} />
+          <KernelCosts flops={flops} traffic={traffic} rates={rates} times={costs[0]?.ms} hardware={hardware} modelId={model.id} sequence={sequence} onChange={setRates} />
         </div>
-      </section>
+      </div>
       {model.note && <p className="ag-model-note">{model.note}</p>}
       {error && <div className="ag-error" role="alert">{error}</div>}
       <fieldset className="ag-strategies"><legend>Saved activations per layer · Select a strategy to update the graph</legend>{levels.map((item,index) => {
         const summary = results?.[index];
+        const cost = costs[index];
         return <label className={`ag-strategy ${level === index ? 'active' : ''}`} key={item.label}>
           <input type="radio" name="recompute-level" aria-label={item.label} value={index} checked={level === index} onChange={() => setLevel(index)} />
           <span className="ag-strategy-heading"><span className="ag-level-number">{index}</span><strong>{item.label}</strong><span className="ag-choice-mark" aria-hidden="true">{level === index ? '●' : '○'}</span></span>
           <span className="ag-strategy-description">{index === 0 ? 'No recomputation' : index === 1 ? model.memoryDescription ?? item.detail : item.detail}</span>
           <strong className="ag-strategy-bytes" data-testid={index === level ? 'current-memory' : undefined}>{summary ? formatBytes(summary.total) : '—'}</strong>
+          <span className="ag-strategy-time">
+            <span>Forward <b data-cost="forward">{cost ? `${cost.forward.toFixed(1)} ms` : '—'}</b></span>
+            <small data-cost="forward-memory">{cost ? `Includes ${cost.ms.forwardMemory.toFixed(1)} ms memory (${(100*cost.ms.forwardMemory/cost.forward).toFixed(1)}%)` : ''}</small>
+            <span>Backward <b data-cost="backward">{cost ? `${cost.backward.toFixed(1)} ms` : '—'}</b></span>
+            <small data-cost="recompute">{cost ? `Includes +${cost.recompute.toFixed(1)} ms recompute` : 'Timing unavailable'}</small>
+            <span>Total <b data-cost="total">{cost ? `${cost.total.toFixed(1)} ms` : '—'}</b></span>
+            <span>Relative time <b data-cost="relative">{cost ? `${cost.relative.toFixed(1)}%` : '—'}</b></span>
+          </span>
           <span className="ag-strategy-footer">{summary ? `${summary.savedCount} tensors saved` : 'Check parameters'}<span>{summary && results ? `Saved ${((1-summary.total/results[0].total)*100).toFixed(1)}%` : ''}</span></span>
         </label>;
       })}</fieldset>
